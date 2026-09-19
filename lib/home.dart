@@ -4,7 +4,7 @@ import 'settings_screen.dart';
 import 'sections/cross_work.dart';
 import 'sections/leyaana.dart';
 import 'sections/just_for_today.dart';
-import 'sections/journal.dart';
+// import 'sections/journal.dart';
 
 class _Section {
   const _Section(this.title, this.subtitle, this.icon, this.builder);
@@ -23,8 +23,9 @@ class HomePage extends StatelessWidget {
         () => const LeyaanaScreen()),
     _Section('لليوم فقط', 'قراءة النهارده بالمصري', Icons.wb_sunny_outlined,
         () => const JustForTodayScreen()),
-    _Section('مسلم', 'سلّم يومك واكتب للروح القدس', Icons.edit_note,
-        () => const JournalScreen()),
+    // Hidden for now (code kept in sections/journal.dart); restore the import too.
+    // _Section('مسلم', 'سلّم يومك واكتب للروح القدس', Icons.edit_note,
+    //     () => const JournalScreen()),
   ];
 
   @override

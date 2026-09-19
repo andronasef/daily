@@ -6,12 +6,14 @@ import 'theme.dart';
 import 'notifications.dart';
 import 'onboarding.dart';
 import 'home.dart';
+import 'verse_surfaces.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Settings.init();
   await Notifications.init();
   runApp(const AioApp());
+  refreshVerseSurfaces(); // not awaited: network shouldn't delay first frame
 }
 
 /// Holds theme mode so Settings can flip dark/light live. Single-user app, so a

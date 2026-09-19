@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'settings.dart';
 import 'home.dart';
+import 'verse_surfaces.dart';
 
 /// First-run: collects first name + gender (needed for section 2 personalization).
 /// Mirrors temp/leyaana/src/routes/Welcome.tsx — first name only, no spaces.
@@ -34,6 +35,7 @@ class _OnboardingState extends State<Onboarding> {
       ..name = name
       ..isMale = _isMale
       ..onboarded = true;
+    refreshVerseSurfaces(); // name/gender change which verse + text the widget/notifications use
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (_) => const HomePage()),
     );

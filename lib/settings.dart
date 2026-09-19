@@ -29,6 +29,7 @@ class Settings {
   static const _notifEnabled = 'notifEnabled';
   static const _notifHour = 'notifHour';
   static const _notifMinute = 'notifMinute';
+  static const _verseNotif = 'verseNotifEnabled';
 
   String get name => _prefs.getString(_name) ?? '';
   set name(String v) => _prefs.setString(_name, v.trim());
@@ -55,6 +56,13 @@ class Settings {
 
   int get notifMinute => _prefs.getInt(_notifMinute) ?? 0;
   set notifMinute(int v) => _prefs.setInt(_notifMinute, v);
+
+  bool get verseNotifEnabled => _prefs.getBool(_verseNotif) ?? false;
+  set verseNotifEnabled(bool v) => _prefs.setBool(_verseNotif, v);
+
+  /// Sanity write token for the ليا انا editor. Entered in Settings, kept on-device.
+  String get sanityToken => _prefs.getString('sanityWriteToken') ?? '';
+  set sanityToken(String v) => _prefs.setString('sanityWriteToken', v.trim());
 
   // Generic string cache (used by sections 2 & 3 for offline/per-day data).
   String? getCache(String key) => _prefs.getString(key);

@@ -45,7 +45,13 @@ int pickIndex(String periodKey, String userKey, String typeKey, int length) {
 // ---- content model ----------------------------------------------------------
 
 class Verse {
-  Verse({required this.id, this.title, required this.verse, this.order, this.createdAt});
+  Verse({
+    required this.id,
+    this.title,
+    required this.verse,
+    this.order,
+    this.createdAt,
+  });
   final String id;
   final String? title;
   final String verse;
@@ -54,7 +60,14 @@ class Verse {
 }
 
 class NamedContent {
-  NamedContent({required this.id, required this.name, this.mean, this.content, this.order, this.createdAt});
+  NamedContent({
+    required this.id,
+    required this.name,
+    this.mean,
+    this.content,
+    this.order,
+    this.createdAt,
+  });
   final String id;
   final String name;
   final String? mean;
@@ -71,7 +84,10 @@ const _sanityApiVersion = 'v2024-01-01';
 
 /// Write token: entered in Settings (stored on-device). --dart-define=SANITY_WRITE_TOKEN
 /// is a fallback for dev builds. Needed only for the ليا انا add/edit/delete screen.
-const _envToken = String.fromEnvironment('SANITY_WRITE_TOKEN', defaultValue: '');
+const _envToken = String.fromEnvironment(
+  'SANITY_WRITE_TOKEN',
+  defaultValue: '',
+);
 
 String get _writeToken {
   final t = Settings.instance.sanityToken;
@@ -93,11 +109,12 @@ Future<List<Map<String, dynamic>>> _fetchType(String type) async {
   final cacheKey = 'content-cache:$type';
   try {
     final uri = Uri.parse(
-        'https://$_sanityProjectId.apicdn.sanity.io/$_sanityApiVersion/data/query/$_sanityDataset')
-        .replace(queryParameters: {'query': _queries[type]!});
+      'https://$_sanityProjectId.apicdn.sanity.io/$_sanityApiVersion/data/query/$_sanityDataset',
+    ).replace(queryParameters: {'query': _queries[type]!});
     final res = await http.get(uri).timeout(const Duration(seconds: 15));
     if (res.statusCode != 200) throw Exception('Sanity ${res.statusCode}');
-    final result = (jsonDecode(res.body)['result'] as List).cast<Map<String, dynamic>>();
+    final result = (jsonDecode(res.body)['result'] as List)
+        .cast<Map<String, dynamic>>();
     await Settings.instance.setCache(cacheKey, jsonEncode(result));
     return result;
   } catch (e) {
@@ -142,18 +159,26 @@ Verse _parseVerse(Map<String, dynamic> m) {
 }
 
 NamedContent _parseNamed(Map<String, dynamic> m) => NamedContent(
-      id: (m['_id'] ?? '').toString(),
-      name: _applyName((m['name'] ?? m['title'] ?? '').toString()).trim(),
-      mean: m['mean'] != null ? _applyName(m['mean'].toString()).trim() : null,
-      content: m['content'] != null ? _applyName(m['content'].toString()).trim() : null,
-      order: (m['order'] is num) ? (m['order'] as num).toInt() : null,
-      createdAt: m['_createdAt']?.toString(),
-    );
+  id: (m['_id'] ?? '').toString(),
+  name: _applyName((m['name'] ?? m['title'] ?? '').toString()).trim(),
+  mean: m['mean'] != null ? _applyName(m['mean'].toString()).trim() : null,
+  content: m['content'] != null
+      ? _applyName(m['content'].toString()).trim()
+      : null,
+  order: (m['order'] is num) ? (m['order'] as num).toInt() : null,
+  createdAt: m['_createdAt']?.toString(),
+);
 
 // ---- public API: today's picks ---------------------------------------------
 
 class DailyContent {
-  DailyContent({required this.dailyVerse, required this.weeklyVerse, required this.monthlyVerse, required this.godName, required this.blessing});
+  DailyContent({
+    required this.dailyVerse,
+    required this.weeklyVerse,
+    required this.monthlyVerse,
+    required this.godName,
+    required this.blessing,
+  });
   final Verse? dailyVerse;
   final Verse? weeklyVerse;
   final Verse? monthlyVerse;
@@ -162,10 +187,19 @@ class DailyContent {
 }
 
 /// Picks the same item the PWA would for the current UTC period + this user.
-Map<String, dynamic>? _pick(List<Map<String, dynamic>> items, String typeKey, String period) {
+Map<String, dynamic>? _pick(
+  List<Map<String, dynamic>> items,
+  String typeKey,
+  String period,
+) {
   if (items.isEmpty) return null;
   final key = getPeriodKey(period);
-  final idx = pickIndex(key, Settings.instance.personKey, typeKey, items.length);
+  final idx = pickIndex(
+    key,
+    Settings.instance.personKey,
+    typeKey,
+    items.length,
+  );
   return items[idx];
 }
 
@@ -183,38 +217,40 @@ Future<void> _mutate(List<Map<String, dynamic>> mutations) async {
     throw Exception('مفيش Sanity write token متظبط.');
   }
   final uri = Uri.parse(
-      'https://$_sanityProjectId.api.sanity.io/$_sanityApiVersion/data/mutate/$_sanityDataset?returnIds=true');
+    'https://$_sanityProjectId.api.sanity.io/$_sanityApiVersion/data/mutate/$_sanityDataset?returnIds=true',
+  );
   final res = await http
-      .post(uri,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $_writeToken',
-          },
-          body: jsonEncode({'mutations': mutations}))
+      .post(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $_writeToken',
+        },
+        body: jsonEncode({'mutations': mutations}),
+      )
       .timeout(const Duration(seconds: 20));
   if (res.statusCode != 200) {
     throw Exception('Sanity ${res.statusCode}: ${res.body}');
   }
 }
 
-Future<void> createDoc(String type, Map<String, dynamic> fields) =>
-    _mutate([
-      {
-        'create': {'_type': type, ...fields}
-      }
-    ]);
+Future<void> createDoc(String type, Map<String, dynamic> fields) => _mutate([
+  {
+    'create': {'_type': type, ...fields},
+  },
+]);
 
 Future<void> updateDoc(String id, Map<String, dynamic> fields) => _mutate([
-      {
-        'patch': {'id': id, 'set': fields}
-      }
-    ]);
+  {
+    'patch': {'id': id, 'set': fields},
+  },
+]);
 
 Future<void> deleteDoc(String id) => _mutate([
-      {
-        'delete': {'id': id}
-      }
-    ]);
+  {
+    'delete': {'id': id},
+  },
+]);
 
 /// Personalized daily verse for the UTC day of each of [dates], keyed by
 /// getPeriodKey('daily'). One fetch, so notifications + widget can be
@@ -225,8 +261,14 @@ Future<Map<String, Verse>> dailyVersesFor(Iterable<DateTime> dates) async {
   final person = Settings.instance.personKey;
   return {
     for (final d in dates)
-      getPeriodKey('daily', d): _parseVerse(verses[
-          pickIndex(getPeriodKey('daily', d), person, 'verse', verses.length)])
+      getPeriodKey('daily', d): _parseVerse(
+        verses[pickIndex(
+          getPeriodKey('daily', d),
+          person,
+          'verse',
+          verses.length,
+        )],
+      ),
   };
 }
 
@@ -255,4 +297,31 @@ Future<DailyContent> loadDailyContent() async {
     godName: gn == null ? null : _parseNamed(gn),
     blessing: bl == null ? null : _parseNamed(bl),
   );
+}
+
+// ---- admin search -----------------------------------------------------------
+
+/// Folds the spelling differences that would otherwise make an Arabic search
+/// miss: harakat, tatweel, the alef/ya/ta-marbuta variants.
+String normalizeArabic(String input) => input
+    .replaceAll(RegExp('[\u064B-\u0652\u0640]'), '')
+    .replaceAll(RegExp('[\u0623\u0625\u0622\u0671]'), '\u0627')
+    .replaceAll('\u0649', '\u064A')
+    .replaceAll('\u0629', '\u0647')
+    .toLowerCase()
+    .trim();
+
+/// Matches a raw admin document against a query, across every text field it
+/// has — title and body alike, so searching a phrase you remember works
+/// whether it was the heading or the content.
+bool matchesQuery(Map<String, dynamic> item, String query) {
+  final q = normalizeArabic(query);
+  if (q.isEmpty) return true;
+  for (final entry in item.entries) {
+    if (entry.key.startsWith('_')) continue;
+    final v = entry.value;
+    if (v is! String) continue;
+    if (normalizeArabic(v).contains(q)) return true;
+  }
+  return false;
 }

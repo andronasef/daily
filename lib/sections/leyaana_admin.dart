@@ -48,7 +48,13 @@ class LeyaanaAdminScreen extends StatelessWidget {
 }
 
 class _Field {
-  const _Field(this.key, this.label, {this.required = false, this.multiline = false, this.number = false});
+  const _Field(
+    this.key,
+    this.label, {
+    this.required = false,
+    this.multiline = false,
+    this.number = false,
+  });
   final String key;
   final String label;
   final bool required;
@@ -90,6 +96,8 @@ class _ManagerTabState extends State<_ManagerTab> {
   String? _editingId;
   bool _busy = false;
   late Future<List<Map<String, dynamic>>> _future;
+  final _searchC = TextEditingController();
+  String _query = '';
 
   @override
   void initState() {
@@ -105,6 +113,7 @@ class _ManagerTabState extends State<_ManagerTab> {
     for (final c in _controllers.values) {
       c.dispose();
     }
+    _searchC.dispose();
     super.dispose();
   }
 
@@ -174,8 +183,14 @@ class _ManagerTabState extends State<_ManagerTab> {
       builder: (_) => AlertDialog(
         content: const Text('متأكد إنك عايز تحذف العنصر ده؟'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('لأ')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('احذف')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('لأ'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('احذف'),
+          ),
         ],
       ),
     );
@@ -199,7 +214,8 @@ class _ManagerTabState extends State<_ManagerTab> {
   }
 
   String _titleOf(Map<String, dynamic> item) {
-    final s = (item['name'] ?? item['title'] ?? item['verse'] ?? 'عنصر').toString();
+    final s = (item['name'] ?? item['title'] ?? item['verse'] ?? 'عنصر')
+        .toString();
     return s.length > 40 ? '${s.substring(0, 40)}…' : s;
   }
 
@@ -222,7 +238,9 @@ class _ManagerTabState extends State<_ManagerTab> {
                       controller: _controllers[f.key],
                       maxLines: f.multiline ? null : 1,
                       minLines: f.multiline ? 4 : 1,
-                      keyboardType: f.number ? TextInputType.number : TextInputType.multiline,
+                      keyboardType: f.number
+                          ? TextInputType.number
+                          : TextInputType.multiline,
                       decoration: InputDecoration(
                         labelText: f.label,
                         border: const OutlineInputBorder(),
@@ -234,7 +252,9 @@ class _ManagerTabState extends State<_ManagerTab> {
                     Expanded(
                       child: FilledButton(
                         onPressed: _busy ? null : _submit,
-                        child: Text(_editingId != null ? 'حفظ التعديل' : 'إضافة'),
+                        child: Text(
+                          _editingId != null ? 'حفظ التعديل' : 'إضافة',
+                        ),
                       ),
                     ),
                     if (_editingId != null) ...[
@@ -251,6 +271,27 @@ class _ManagerTabState extends State<_ManagerTab> {
           ),
         ),
         const SizedBox(height: 16),
+        // Search — scoped to this tab's list, since each tab is its own type.
+        TextField(
+          controller: _searchC,
+          onChanged: (v) => setState(() => _query = v),
+          decoration: InputDecoration(
+            hintText: 'ابحث بالعنوان أو بالمحتوى...',
+            prefixIcon: const Icon(Icons.search),
+            border: const OutlineInputBorder(),
+            isDense: true,
+            suffixIcon: _query.isEmpty
+                ? null
+                : IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () {
+                      _searchC.clear();
+                      setState(() => _query = '');
+                    },
+                  ),
+          ),
+        ),
+        const SizedBox(height: 12),
         // List
         FutureBuilder<List<Map<String, dynamic>>>(
           future: _future,
@@ -264,17 +305,41 @@ class _ManagerTabState extends State<_ManagerTab> {
             if (snap.hasError) {
               return Text('تعذر التحميل: ${snap.error}');
             }
-            final items = snap.data ?? const [];
-            if (items.isEmpty) return const Text('لا توجد عناصر.');
+            final all = snap.data ?? const [];
+            if (all.isEmpty) return const Text('لا توجد عناصر.');
+            final items = [
+              for (final item in all)
+                if (matchesQuery(item, _query)) item,
+            ];
+            if (items.isEmpty) {
+              return const Padding(
+                padding: EdgeInsets.all(24),
+                child: Center(child: Text('مفيش نتايج.')),
+              );
+            }
             return Column(
               children: [
+                if (_query.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Text(
+                        '${items.length} من ${all.length}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                  ),
                 for (final item in items)
                   Card(
                     child: ListTile(
-                      title: Text(_titleOf(item),
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
+                      title: Text(
+                        _titleOf(item),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
                       subtitle: Text(
-                        (item['mean'] ?? item['content'] ?? item['title'] ?? '').toString(),
+                        (item['mean'] ?? item['content'] ?? item['title'] ?? '')
+                            .toString(),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),

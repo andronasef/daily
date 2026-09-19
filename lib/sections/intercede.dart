@@ -19,7 +19,9 @@ class _IntercedeScreenState extends State<IntercedeScreen> {
     _future = fetchEntities();
   }
 
-  void _reload() => setState(() => _future = fetchEntities());
+  void _reload() => setState(() {
+        _future = fetchEntities();
+      });
 
   @override
   Widget build(BuildContext context) {
@@ -272,7 +274,9 @@ class _EntityPageState extends State<_EntityPage> {
     _future = fetchEntities();
   }
 
-  void _reload() => setState(() => _future = fetchEntities());
+  void _reload() => setState(() {
+        _future = fetchEntities();
+      });
 
   Entity? _find(List<Entity> all) {
     for (final e in all) {

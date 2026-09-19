@@ -87,41 +87,48 @@ class JustForTodayScreen extends StatefulWidget {
   State<JustForTodayScreen> createState() => _JustForTodayScreenState();
 }
 
+String _todayKey() {
+  final n = DateTime.now();
+  return 'jft:${n.year}-${n.month}-${n.day}';
+}
+
+/// Fetch + translate today's reading, or return the cached copy. Top-level so
+/// the daily background task (lib/background.dart) can warm the cache without
+/// a widget tree.
+Future<Jft> loadJft({bool force = false}) async {
+  final key = _todayKey();
+  if (!force) {
+    final cached = Settings.instance.getCache(key);
+    if (cached != null) return Jft.fromJson(jsonDecode(cached));
+  }
+  final jft = await _translate(await _fetchSource());
+  await Settings.instance.setCache(
+      key,
+      jsonEncode({
+        'title': jft.title,
+        'date': jft.date,
+        'quote': jft.quote,
+        'paragraphs': jft.paragraphs,
+        'justForToday': jft.justForToday,
+      }));
+  return jft;
+}
+
+/// True when today's reading is already cached — nothing to fetch.
+bool jftCachedForToday() => Settings.instance.getCache(_todayKey()) != null;
+
 class _JustForTodayScreenState extends State<JustForTodayScreen> {
   late Future<Jft> _future;
-
-  String get _todayKey {
-    final n = DateTime.now();
-    return 'jft:${n.year}-${n.month}-${n.day}';
-  }
 
   @override
   void initState() {
     super.initState();
-    _future = _load();
-  }
-
-  Future<Jft> _load({bool force = false}) async {
-    if (!force) {
-      final cached = Settings.instance.getCache(_todayKey);
-      if (cached != null) return Jft.fromJson(jsonDecode(cached));
-    }
-    final jft = await _translate(await _fetchSource());
-    await Settings.instance.setCache(
-        _todayKey,
-        jsonEncode({
-          'title': jft.title,
-          'date': jft.date,
-          'quote': jft.quote,
-          'paragraphs': jft.paragraphs,
-          'justForToday': jft.justForToday,
-        }));
-    return jft;
+    _future = loadJft();
   }
 
   void _refresh() {
     setState(() {
-      _future = _load(force: true);
+      _future = loadJft(force: true);
     });
   }
 

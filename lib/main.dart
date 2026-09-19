@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'background.dart';
 import 'settings.dart';
 import 'theme.dart';
 import 'notifications.dart';
@@ -13,7 +14,10 @@ Future<void> main() async {
   await Settings.init();
   await Notifications.init();
   runApp(const AioApp());
-  refreshVerseSurfaces(); // not awaited: network shouldn't delay first frame
+  // Not awaited: network shouldn't delay first frame.
+  refreshVerseSurfaces();
+  initDailyPrefetch();
+  prefetchJftNow();
 }
 
 /// Holds theme mode so Settings can flip dark/light live. Single-user app, so a

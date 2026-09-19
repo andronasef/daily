@@ -13,8 +13,13 @@ class AppUpdate {
   final String apkUrl;
 }
 
-List<int> _parts(String v) =>
-    v.replaceFirst(RegExp(r'^v'), '').split('+').first.split('.').map((p) => int.tryParse(p) ?? 0).toList();
+List<int> _parts(String v) => v
+    .replaceFirst(RegExp(r'^v'), '')
+    .split('+')
+    .first
+    .split('.')
+    .map((p) => int.tryParse(p) ?? 0)
+    .toList();
 
 bool _isNewer(String a, String b) {
   final x = _parts(a), y = _parts(b);
@@ -37,8 +42,13 @@ Future<AppUpdate?> checkForUpdate() async {
   if (!_isNewer(tag, current)) return null;
   final assets = (json['assets'] as List).cast<Map<String, dynamic>>();
   final apk = assets.firstWhere((a) => (a['name'] as String).endsWith('.apk'));
-  return AppUpdate(tag.replaceFirst('v', ''), apk['browser_download_url'] as String);
+  return AppUpdate(
+    tag.replaceFirst('v', ''),
+    apk['browser_download_url'] as String,
+  );
 }
 
-Stream<OtaEvent> installUpdate(AppUpdate u) =>
-    OtaUpdate().execute(u.apkUrl, destinationFilename: 'daily-${u.version}.apk');
+Stream<OtaEvent> installUpdate(AppUpdate u) => OtaUpdate().execute(
+  u.apkUrl,
+  destinationFilename: 'daily-${u.version}.apk',
+);

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:aio/leyaana_content.dart';
+import 'package:aio/features/leyaana/data/daily_pick.dart';
 
 // Guards the port of temp/leyaana's daily-pick hash. If any of these drift, the
 // app would show a different verse than the PWA. Ground-truth values computed by

@@ -2,9 +2,9 @@ import 'dart:convert';
 
 import 'package:flutter/services.dart';
 
-import 'leyaana_content.dart';
-import 'notifications.dart';
-import 'settings.dart';
+import '../../../core/notifications.dart';
+import '../../../core/settings.dart';
+import 'repository.dart';
 
 const _widgetChannel = MethodChannel('aio/widget');
 
@@ -18,7 +18,7 @@ Future<void> refreshVerseSurfaces() async {
     final now = DateTime.now();
     final byDay = await dailyVersesFor([
       for (var i = 0; i <= Notifications.verseDays; i++)
-        now.add(Duration(days: i))
+        now.add(Duration(days: i)),
     ]);
     if (byDay.isEmpty) return;
 
@@ -26,7 +26,7 @@ Future<void> refreshVerseSurfaces() async {
       'verse-widget',
       jsonEncode({
         for (final e in byDay.entries)
-          e.key: {'t': e.value.title ?? 'آية اليوم', 'v': e.value.verse}
+          e.key: {'t': e.value.title ?? 'آية اليوم', 'v': e.value.verse},
       }),
     );
     try {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../leyaana_content.dart';
-import 'leyaana_admin.dart';
+import '../data/repository.dart';
+import 'leyaana_admin_screen.dart';
 
 /// Section 2 "ليا انا": daily/weekly/monthly verses, a daily God-name, and a
 /// daily blessing — same picks as the leyaana PWA (see leyaana_content.dart).
@@ -40,8 +40,9 @@ class _LeyaanaScreenState extends State<LeyaanaScreen> {
               tooltip: 'إدارة المحتوى',
               icon: const Icon(Icons.edit_outlined),
               onPressed: () async {
-                await Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => const LeyaanaAdminScreen()));
+                await Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const LeyaanaAdminScreen()),
+                );
                 _reload();
               },
             ),
@@ -69,7 +70,10 @@ class _LeyaanaScreenState extends State<LeyaanaScreen> {
               children: [
                 _VersesTab(content: c),
                 _NamedTab(item: c.godName, emptyLabel: 'مفيش اسم متاح دلوقتي.'),
-                _NamedTab(item: c.blessing, emptyLabel: 'مفيش بركة متاحة دلوقتي.'),
+                _NamedTab(
+                  item: c.blessing,
+                  emptyLabel: 'مفيش بركة متاحة دلوقتي.',
+                ),
               ],
             );
           },
@@ -125,20 +129,30 @@ class _VersesTab extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(label,
-                      style: theme.textTheme.labelLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: theme.colorScheme.primary)),
+                  Text(
+                    label,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
                   const SizedBox(height: 10),
-                  Text('"${verse!.verse}"',
-                      style: theme.textTheme.headlineSmall
-                          ?.copyWith(height: 1.8, fontWeight: FontWeight.bold)),
+                  Text(
+                    '"${verse!.verse}"',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      height: 1.8,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   if (verse.title != null && verse.title!.isNotEmpty) ...[
                     const SizedBox(height: 10),
-                    Text(verse.title!,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: theme.colorScheme.onSurfaceVariant)),
+                    Text(
+                      verse.title!,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -165,20 +179,28 @@ class _NamedTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(item!.name,
-                  style: theme.textTheme.headlineMedium
-                      ?.copyWith(fontWeight: FontWeight.bold)),
+              Text(
+                item!.name,
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               if (item!.mean != null && item!.mean!.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                Text(item!.mean!,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: theme.colorScheme.primary)),
+                Text(
+                  item!.mean!,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
               ],
               if (item!.content != null && item!.content!.isNotEmpty) ...[
                 const SizedBox(height: 16),
-                Text(item!.content!,
-                    style: theme.textTheme.bodyLarge?.copyWith(height: 1.9)),
+                Text(
+                  item!.content!,
+                  style: theme.textTheme.bodyLarge?.copyWith(height: 1.9),
+                ),
               ],
             ],
           ),
@@ -193,8 +215,8 @@ class _Empty extends StatelessWidget {
   final String label;
   @override
   Widget build(BuildContext context) => Center(
-        child: Padding(padding: const EdgeInsets.all(24), child: Text(label)),
-      );
+    child: Padding(padding: const EdgeInsets.all(24), child: Text(label)),
+  );
 }
 
 class _ErrorView extends StatelessWidget {
@@ -202,13 +224,13 @@ class _ErrorView extends StatelessWidget {
   final VoidCallback onRetry;
   @override
   Widget build(BuildContext context) => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('تعذر تحميل المحتوى. اتأكد من الاتصال بالإنترنت.'),
-            const SizedBox(height: 12),
-            FilledButton(onPressed: onRetry, child: const Text('إعادة المحاولة')),
-          ],
-        ),
-      );
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text('تعذر تحميل المحتوى. اتأكد من الاتصال بالإنترنت.'),
+        const SizedBox(height: 12),
+        FilledButton(onPressed: onRetry, child: const Text('إعادة المحاولة')),
+      ],
+    ),
+  );
 }

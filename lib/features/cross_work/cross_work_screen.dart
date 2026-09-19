@@ -46,50 +46,91 @@ class CrossWorkScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
         children: [
-          Text('عمل الصليب',
-              textAlign: TextAlign.center,
-              style: serif.copyWith(
-                  fontSize: 40, fontWeight: FontWeight.w700, color: primary, height: 1.3)),
+          Text(
+            'عمل الصليب',
+            textAlign: TextAlign.center,
+            style: serif.copyWith(
+              fontSize: 40,
+              fontWeight: FontWeight.w700,
+              color: primary,
+              height: 1.3,
+            ),
+          ),
           const SizedBox(height: 16),
-          Center(child: SizedBox(width: 60, child: Divider(color: muted.withValues(alpha: 0.4)))),
+          Center(
+            child: SizedBox(
+              width: 60,
+              child: Divider(color: muted.withValues(alpha: 0.4)),
+            ),
+          ),
           const SizedBox(height: 12),
-          Text('تأمل روحي',
-              textAlign: TextAlign.center,
-              style: serif.copyWith(fontSize: 15, color: muted)),
+          Text(
+            'تأمل روحي',
+            textAlign: TextAlign.center,
+            style: serif.copyWith(fontSize: 15, color: muted),
+          ),
           const SizedBox(height: 20),
           Icon(Icons.south, size: 18, color: muted.withValues(alpha: 0.6)),
           const SizedBox(height: 40),
           for (final line in _meditation) ...[
-            Text(line,
-                textAlign: TextAlign.center,
-                style: serif.copyWith(
-                    fontSize: 20, height: 2.0, color: theme.colorScheme.onSurface)),
+            Text(
+              line,
+              textAlign: TextAlign.center,
+              style: serif.copyWith(
+                fontSize: 20,
+                height: 2.0,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
             const SizedBox(height: 28),
           ],
           const SizedBox(height: 12),
           _CrossDivider(color: primary),
           const SizedBox(height: 36),
           for (final v in _verses) ...[
-            Text(v.$1,
-                textAlign: TextAlign.center,
-                style: serif.copyWith(
-                    fontSize: 18, height: 2.0, color: theme.colorScheme.onSurface)),
+            Text(
+              v.$1,
+              textAlign: TextAlign.center,
+              style: serif.copyWith(
+                fontSize: 18,
+                height: 2.0,
+                color: theme.colorScheme.onSurface,
+              ),
+            ),
             const SizedBox(height: 10),
-            Text(v.$2,
-                textAlign: TextAlign.center,
-                style: serif.copyWith(
-                    fontSize: 15, fontWeight: FontWeight.w700, color: primary)),
+            Text(
+              v.$2,
+              textAlign: TextAlign.center,
+              style: serif.copyWith(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: primary,
+              ),
+            ),
             const SizedBox(height: 36),
           ],
           const SizedBox(height: 8),
-          Divider(color: primary.withValues(alpha: 0.3), indent: 100, endIndent: 100),
+          Divider(
+            color: primary.withValues(alpha: 0.3),
+            indent: 100,
+            endIndent: 100,
+          ),
           const SizedBox(height: 16),
-          Text('شادي حبيش',
-              textAlign: TextAlign.center,
-              style: serif.copyWith(
-                  fontSize: 17, fontWeight: FontWeight.w700, color: primary)),
+          Text(
+            'شادي حبيش',
+            textAlign: TextAlign.center,
+            style: serif.copyWith(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: primary,
+            ),
+          ),
           const SizedBox(height: 16),
-          Divider(color: primary.withValues(alpha: 0.3), indent: 100, endIndent: 100),
+          Divider(
+            color: primary.withValues(alpha: 0.3),
+            indent: 100,
+            endIndent: 100,
+          ),
         ],
       ),
     );
@@ -106,12 +147,18 @@ class _CrossDivider extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        SizedBox(width: 60, child: Divider(color: color.withValues(alpha: 0.4))),
+        SizedBox(
+          width: 60,
+          child: Divider(color: color.withValues(alpha: 0.4)),
+        ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Icon(Icons.add, size: 22, color: color),
         ),
-        SizedBox(width: 60, child: Divider(color: color.withValues(alpha: 0.4))),
+        SizedBox(
+          width: 60,
+          child: Divider(color: color.withValues(alpha: 0.4)),
+        ),
       ],
     );
   }

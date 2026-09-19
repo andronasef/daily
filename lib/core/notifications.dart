@@ -3,7 +3,8 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
-import 'leyaana_content.dart';
+import '../features/leyaana/data/daily_pick.dart';
+import '../features/leyaana/data/repository.dart';
 import 'settings.dart';
 
 /// One daily local reminder at the user's chosen time.
@@ -41,17 +42,24 @@ class Notifications {
 
   /// Ask OS permission (Android 13+ / iOS). Returns granted.
   static Future<bool> requestPermission() async {
-    final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
     if (android != null) {
       final granted = await android.requestNotificationsPermission();
       return granted ?? false;
     }
-    final ios = _plugin.resolvePlatformSpecificImplementation<
-        IOSFlutterLocalNotificationsPlugin>();
+    final ios = _plugin
+        .resolvePlatformSpecificImplementation<
+          IOSFlutterLocalNotificationsPlugin
+        >();
     if (ios != null) {
-      final granted =
-          await ios.requestPermissions(alert: true, badge: true, sound: true);
+      final granted = await ios.requestPermissions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
       return granted ?? false;
     }
     return true;
@@ -93,10 +101,18 @@ class Notifications {
   static Future<void> scheduleVerses(Map<String, Verse> byDay) async {
     await cancelVerses();
     final first = _nextInstance(
-        Settings.instance.notifHour, Settings.instance.notifMinute);
+      Settings.instance.notifHour,
+      Settings.instance.notifMinute,
+    );
     for (var i = 0; i < verseDays; i++) {
-      final t = tz.TZDateTime(tz.local, first.year, first.month,
-          first.day + i, first.hour, first.minute);
+      final t = tz.TZDateTime(
+        tz.local,
+        first.year,
+        first.month,
+        first.day + i,
+        first.hour,
+        first.minute,
+      );
       final v = byDay[getPeriodKey('daily', t)];
       if (v == null) continue;
       await _plugin.zonedSchedule(

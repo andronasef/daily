@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:ota_update/ota_update.dart';
 
-import 'updater.dart';
-
-import 'main.dart';
-import 'settings.dart';
-import 'notifications.dart';
-import 'onboarding.dart';
-import 'verse_surfaces.dart';
+import '../../app/app.dart';
+import '../../core/notifications.dart';
+import '../../core/settings.dart';
+import '../../core/updater.dart';
+import '../leyaana/data/verse_surfaces.dart';
+import '../onboarding/onboarding_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -38,11 +37,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return;
       }
       installUpdate(u).listen(
-        (e) => setState(() => _updateStatus = switch (e.status) {
-              OtaStatus.DOWNLOADING => 'تحميل ${u.version}… ${e.value}%',
-              OtaStatus.INSTALLING => 'بنثبّت…',
-              _ => 'تعذّر التحديث: ${e.status.name}',
-            }),
+        (e) => setState(
+          () => _updateStatus = switch (e.status) {
+            OtaStatus.DOWNLOADING => 'تحميل ${u.version}… ${e.value}%',
+            OtaStatus.INSTALLING => 'بنثبّت…',
+            _ => 'تعذّر التحديث: ${e.status.name}',
+          },
+        ),
         onError: (_) => setState(() => _updateStatus = 'تعذّر التحديث.'),
       );
     } catch (_) {
@@ -55,8 +56,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final granted = await Notifications.requestPermission();
       if (!granted) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('لازم تسمح بالإشعارات من إعدادات الجهاز.')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('لازم تسمح بالإشعارات من إعدادات الجهاز.'),
+            ),
+          );
         }
         return;
       }
@@ -72,8 +76,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final granted = await Notifications.requestPermission();
       if (!granted) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('لازم تسمح بالإشعارات من إعدادات الجهاز.')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('لازم تسمح بالإشعارات من إعدادات الجهاز.'),
+            ),
+          );
         }
         return;
       }
@@ -105,8 +112,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final timeLabel = TimeOfDay(hour: _s.notifHour, minute: _s.notifMinute)
-        .format(context);
+    final timeLabel = TimeOfDay(
+      hour: _s.notifHour,
+      minute: _s.notifMinute,
+    ).format(context);
     final anyReminder = _s.notifEnabled || _s.verseNotifEnabled;
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
@@ -130,11 +139,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ListTile(
             enabled: anyReminder,
             title: const Text('وقت التذكير'),
-            subtitle: anyReminder ? null : const Text('فعّل تذكير عشان تحدد الوقت'),
-            trailing: Text(timeLabel,
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: anyReminder ? cs.primary : null)),
+            subtitle: anyReminder
+                ? null
+                : const Text('فعّل تذكير عشان تحدد الوقت'),
+            trailing: Text(
+              timeLabel,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: anyReminder ? cs.primary : null,
+              ),
+            ),
             onTap: anyReminder ? _pickTime : null,
           ),
           const _Section('المظهر'),
@@ -152,9 +166,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('تعديل الاسم والنوع'),
             subtitle: Text('الاسم الحالي: ${_s.name}'),
             trailing: const Icon(Icons.chevron_left),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const Onboarding()),
-            ),
+            onTap: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const Onboarding())),
           ),
           const _Section('المفاتيح'),
           _SecretField(
@@ -191,9 +205,13 @@ class _Section extends StatelessWidget {
     final t = Theme.of(context);
     return Padding(
       padding: const EdgeInsetsDirectional.fromSTEB(16, 28, 16, 4),
-      child: Text(title,
-          style: t.textTheme.titleSmall?.copyWith(
-              color: t.colorScheme.primary, fontWeight: FontWeight.bold)),
+      child: Text(
+        title,
+        style: t.textTheme.titleSmall?.copyWith(
+          color: t.colorScheme.primary,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
     );
   }
 }
@@ -218,24 +236,24 @@ class _SecretFieldState extends State<_SecretField> {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: TextField(
-          controller: widget.controller,
-          obscureText: _hidden,
-          autocorrect: false,
-          enableSuggestions: false,
-          textDirection: TextDirection.ltr,
-          decoration: InputDecoration(
-            labelText: widget.label,
-            helperText: widget.helper,
-            border: const OutlineInputBorder(),
-            suffixIcon: IconButton(
-              tooltip: _hidden ? 'إظهار' : 'إخفاء',
-              icon: Icon(_hidden ? Icons.visibility : Icons.visibility_off),
-              onPressed: () => setState(() => _hidden = !_hidden),
-            ),
-          ),
-          onChanged: widget.onChanged,
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    child: TextField(
+      controller: widget.controller,
+      obscureText: _hidden,
+      autocorrect: false,
+      enableSuggestions: false,
+      textDirection: TextDirection.ltr,
+      decoration: InputDecoration(
+        labelText: widget.label,
+        helperText: widget.helper,
+        border: const OutlineInputBorder(),
+        suffixIcon: IconButton(
+          tooltip: _hidden ? 'إظهار' : 'إخفاء',
+          icon: Icon(_hidden ? Icons.visibility : Icons.visibility_off),
+          onPressed: () => setState(() => _hidden = !_hidden),
         ),
-      );
+      ),
+      onChanged: widget.onChanged,
+    ),
+  );
 }

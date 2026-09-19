@@ -1,6 +1,6 @@
 import 'package:workmanager/workmanager.dart';
 
-import 'sections/just_for_today.dart';
+import '../features/just_for_today/data/repository.dart';
 import 'settings.dart';
 
 const _jftTask = 'jftPrefetch';

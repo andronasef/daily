@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../journal_db.dart';
+import '../data/journal_db.dart';
 
 /// Section 4 "مسلم": daily surrender note to the Holy Spirit. Today's editor +
 /// history of past days. Autosaves on change and on leaving the screen.
@@ -14,15 +14,13 @@ class JournalScreen extends StatelessWidget {
         appBar: AppBar(
           title: const Text('مسلم'),
           bottom: const TabBar(
-            tabs: [Tab(text: 'النهارده'), Tab(text: 'الأيام اللي فاتت')],
+            tabs: [
+              Tab(text: 'النهارده'),
+              Tab(text: 'الأيام اللي فاتت'),
+            ],
           ),
         ),
-        body: const TabBarView(
-          children: [
-            _Editor(date: null),
-            _History(),
-          ],
-        ),
+        body: const TabBarView(children: [_Editor(date: null), _History()]),
       ),
     );
   }
@@ -80,13 +78,19 @@ class _EditorState extends State<_Editor> with AutomaticKeepAliveClientMixin {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('سلّم يومك للروح القدس 🕊️',
-              style: theme.textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.bold)),
+          Text(
+            'سلّم يومك للروح القدس 🕊️',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(_date,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          Text(
+            _date,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: 16),
           Expanded(
             child: TextField(
@@ -147,17 +151,24 @@ class _HistoryState extends State<_History> {
             final e = entries[i];
             return Card(
               child: ListTile(
-                title: Text(e.date,
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text(e.body,
-                    maxLines: 2, overflow: TextOverflow.ellipsis),
+                title: Text(
+                  e.date,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  e.body,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 onTap: () async {
-                  await Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) => Scaffold(
-                      appBar: AppBar(title: Text(e.date)),
-                      body: _Editor(date: e.date),
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => Scaffold(
+                        appBar: AppBar(title: Text(e.date)),
+                        body: _Editor(date: e.date),
+                      ),
                     ),
-                  ));
+                  );
                   _reload();
                 },
               ),

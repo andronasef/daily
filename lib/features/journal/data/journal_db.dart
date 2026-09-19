@@ -4,7 +4,11 @@ import 'package:sqflite/sqflite.dart';
 /// Local-only journal store. One row per day (date = YYYY-MM-DD).
 /// ponytail: local sqflite, no cloud sync — add sync only if he switches phones.
 class JournalEntry {
-  JournalEntry({required this.date, required this.body, required this.updatedAt});
+  JournalEntry({
+    required this.date,
+    required this.body,
+    required this.updatedAt,
+  });
   final String date;
   final String body;
   final String updatedAt;
@@ -37,8 +41,13 @@ class JournalDb {
   }
 
   Future<String> get(String date) async {
-    final rows = await _db.query('entries',
-        columns: ['body'], where: 'date = ?', whereArgs: [date], limit: 1);
+    final rows = await _db.query(
+      'entries',
+      columns: ['body'],
+      where: 'date = ?',
+      whereArgs: [date],
+      limit: 1,
+    );
     return rows.isEmpty ? '' : rows.first['body'] as String;
   }
 
@@ -48,21 +57,23 @@ class JournalDb {
       await _db.delete('entries', where: 'date = ?', whereArgs: [date]);
       return;
     }
-    await _db.insert(
-      'entries',
-      {'date': date, 'body': body, 'updated_at': now},
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await _db.insert('entries', {
+      'date': date,
+      'body': body,
+      'updated_at': now,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<List<JournalEntry>> all() async {
     final rows = await _db.query('entries', orderBy: 'date DESC');
     return rows
-        .map((r) => JournalEntry(
-              date: r['date'] as String,
-              body: r['body'] as String,
-              updatedAt: r['updated_at'] as String,
-            ))
+        .map(
+          (r) => JournalEntry(
+            date: r['date'] as String,
+            body: r['body'] as String,
+            updatedAt: r['updated_at'] as String,
+          ),
+        )
         .toList();
   }
 }

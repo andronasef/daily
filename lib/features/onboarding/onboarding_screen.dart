@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'settings.dart';
-import 'home.dart';
-import 'verse_surfaces.dart';
+import '../../core/settings.dart';
+import '../home/home_screen.dart';
+import '../leyaana/data/verse_surfaces.dart';
 
 /// First-run: collects first name + gender (needed for section 2 personalization).
 /// Mirrors temp/leyaana/src/routes/Welcome.tsx — first name only, no spaces.
@@ -36,9 +36,9 @@ class _OnboardingState extends State<Onboarding> {
       ..isMale = _isMale
       ..onboarded = true;
     refreshVerseSurfaces(); // name/gender change which verse + text the widget/notifications use
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const HomePage()),
-    );
+    Navigator.of(
+      context,
+    ).pushReplacement(MaterialPageRoute(builder: (_) => const HomePage()));
   }
 
   @override
@@ -51,9 +51,12 @@ class _OnboardingState extends State<Onboarding> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 16),
-              Text('اهلا بيك! 👋',
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold)),
+              Text(
+                'اهلا بيك! 👋',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 12),
               const Text(
                 'المكان ده ليك انت — بتصلي وبتفتكر ان الله عمل حاجات جميلة كتير علشانك. '

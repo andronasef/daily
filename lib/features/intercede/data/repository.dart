@@ -2,10 +2,13 @@ import 'dart:math';
 
 import '../../../core/sanity/client.dart';
 import 'models.dart';
+import 'store.dart';
 
-// ponytail: network-only, no local cache — intercede data is small and
-// write-heavy; staleness would be more confusing than a spinner. Ceiling:
-// add Settings-based cache like leyaana_content.dart if latency hurts.
+// ponytail: offline-first. Reads come from IntercedeStore's disk cache and
+// refresh in the background; writes apply locally and queue in its outbox
+// until they reach Sanity. Ceiling: the outbox flushes on app resume and on
+// every action — add connectivity_plus or a workmanager job if queued actions
+// sit too long.
 
 bool get intercedeCanEdit => sanityCanWrite;
 
@@ -62,10 +65,12 @@ Entity _parseEntity(Map<String, dynamic> m) {
   );
 }
 
-Future<List<Entity>> fetchEntities() async {
-  final result = await sanityQuery(_query, cdn: false);
-  return result.map(_parseEntity).toList();
-}
+/// Raw `_query` payload, cached verbatim by [IntercedeStore].
+Future<List<Map<String, dynamic>>> fetchEntitiesRaw() =>
+    sanityQuery(_query, cdn: false);
+
+List<Entity> parseEntities(List<Map<String, dynamic>> raw) =>
+    raw.map(_parseEntity).toList();
 
 String _key() {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
@@ -75,19 +80,21 @@ String _key() {
 
 // ---- entity CRUD ------------------------------------------------------------
 
-Future<void> addEntity(String name, {String? note}) => sanityMutate([
-  {
-    'create': {
-      '_type': 'intercedeEntity',
-      'name': name,
-      if (note != null && note.isNotEmpty) 'note': note,
-      'createdAt': _nowUtc(),
-    },
-  },
-]);
+Future<void> addEntity(String name, {String? note}) =>
+    IntercedeStore.instance.apply([
+      {
+        'createIfNotExists': {
+          '_id': 'intercedeEntity.${_key()}',
+          '_type': 'intercedeEntity',
+          'name': name,
+          if (note != null && note.isNotEmpty) 'note': note,
+          'createdAt': _nowUtc(),
+        },
+      },
+    ]);
 
 Future<void> editEntity(String id, String name, {String? note}) =>
-    sanityMutate([
+    IntercedeStore.instance.apply([
       {
         'patch': {
           'id': id,
@@ -96,7 +103,7 @@ Future<void> editEntity(String id, String name, {String? note}) =>
       },
     ]);
 
-Future<void> deleteEntity(Entity e) => sanityMutate([
+Future<void> deleteEntity(Entity e) => IntercedeStore.instance.apply([
   for (final p in e.prayers)
     {
       'delete': {'id': p.id},
@@ -109,9 +116,12 @@ Future<void> deleteEntity(Entity e) => sanityMutate([
 // ---- prayer CRUD ------------------------------------------------------------
 
 Future<void> addPrayer(String entityId, String title, {DateTime? startedAt}) =>
-    sanityMutate([
+    IntercedeStore.instance.apply([
       {
-        'create': {
+        // Client-generated id: the queued create is idempotent, and a patch
+        // queued behind it can target the doc before Sanity has seen it.
+        'createIfNotExists': {
+          '_id': 'intercedePrayer.${_key()}',
           '_type': 'intercedePrayer',
           'title': title,
           'entity': {'_type': 'reference', '_ref': entityId},
@@ -120,64 +130,68 @@ Future<void> addPrayer(String entityId, String title, {DateTime? startedAt}) =>
       },
     ]);
 
-Future<void> editPrayer(String id, String title) => sanityMutate([
-  {
-    'patch': {
-      'id': id,
-      'set': {'title': title},
-    },
-  },
-]);
+Future<void> editPrayer(String id, String title) =>
+    IntercedeStore.instance.apply([
+      {
+        'patch': {
+          'id': id,
+          'set': {'title': title},
+        },
+      },
+    ]);
 
-Future<void> setPinned(String id, bool pinned) => sanityMutate([
-  {
-    'patch': {
-      'id': id,
-      'set': {'pinned': pinned},
-    },
-  },
-]);
+Future<void> setPinned(String id, bool pinned) =>
+    IntercedeStore.instance.apply([
+      {
+        'patch': {
+          'id': id,
+          'set': {'pinned': pinned},
+        },
+      },
+    ]);
 
-Future<void> deletePrayer(String id) => sanityMutate([
+Future<void> deletePrayer(String id) => IntercedeStore.instance.apply([
   {
     'delete': {'id': id},
   },
 ]);
 
-Future<void> logPrayed(List<String> prayerIds, {String? note}) => sanityMutate([
-  for (final id in prayerIds)
-    {
-      'patch': {
-        'id': id,
-        'setIfMissing': {'logs': []},
-        'insert': {
-          'after': 'logs[-1]',
-          'items': [
-            {
-              '_key': _key(),
-              '_type': 'prayerLog',
-              'prayedAt': _nowUtc(),
-              if (note != null && note.isNotEmpty) 'note': note,
+Future<void> logPrayed(List<String> prayerIds, {String? note}) =>
+    IntercedeStore.instance.apply([
+      for (final id in prayerIds)
+        {
+          'patch': {
+            'id': id,
+            'setIfMissing': {'logs': []},
+            'insert': {
+              'after': 'logs[-1]',
+              'items': [
+                {
+                  '_key': _key(),
+                  '_type': 'prayerLog',
+                  'prayedAt': _nowUtc(),
+                  if (note != null && note.isNotEmpty) 'note': note,
+                },
+              ],
             },
-          ],
+          },
+        },
+    ]);
+
+Future<void> completePrayer(String id, {String? outcome}) =>
+    IntercedeStore.instance.apply([
+      {
+        'patch': {
+          'id': id,
+          'set': {
+            'completedAt': _nowUtc(),
+            if (outcome != null && outcome.isNotEmpty) 'outcome': outcome,
+          },
         },
       },
-    },
-]);
+    ]);
 
-Future<void> completePrayer(String id, {String? outcome}) => sanityMutate([
-  {
-    'patch': {
-      'id': id,
-      'set': {
-        'completedAt': _nowUtc(),
-        if (outcome != null && outcome.isNotEmpty) 'outcome': outcome,
-      },
-    },
-  },
-]);
-
-Future<void> reopenPrayer(String id) => sanityMutate([
+Future<void> reopenPrayer(String id) => IntercedeStore.instance.apply([
   {
     'patch': {
       'id': id,

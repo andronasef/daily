@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import '../core/settings.dart';
+import '../features/intercede/data/store.dart';
 import '../features/home/home_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
 import 'theme.dart';
@@ -18,8 +19,26 @@ class AioApp extends StatefulWidget {
   State<AioApp> createState() => AioAppState();
 }
 
-class AioAppState extends State<AioApp> {
+class AioAppState extends State<AioApp> with WidgetsBindingObserver {
   late bool _dark = Settings.instance.isDark;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Coming back to the app is the cheapest moment to drain the تشفع outbox.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) IntercedeStore.instance.flush();
+  }
 
   void setDark(bool v) {
     Settings.instance.isDark = v;

@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../data/models.dart';
 import '../data/repository.dart';
+import '../data/store.dart';
 import 'intercede_screen.dart';
 import 'prayer_page.dart';
 import 'widgets/prayer_card.dart';
@@ -23,17 +26,15 @@ class EntityPage extends StatefulWidget {
 }
 
 class _EntityPageState extends State<EntityPage> {
-  late Future<List<Entity>> _future;
+  final _store = IntercedeStore.instance;
 
   @override
   void initState() {
     super.initState();
-    _future = fetchEntities();
+    _reload();
   }
 
-  void _reload() => setState(() {
-    _future = fetchEntities();
-  });
+  void _reload() => unawaited(_store.refresh());
 
   Entity? _find(List<Entity> all) {
     for (final e in all) {
@@ -53,14 +54,13 @@ class _EntityPageState extends State<EntityPage> {
               child: const Icon(Icons.add),
             )
           : null,
-      body: FutureBuilder<List<Entity>>(
-        future: _future,
-        builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
+      body: ValueListenableBuilder<List<Entity>?>(
+        valueListenable: _store.entities,
+        builder: (context, all, _) {
+          if (all == null) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (snap.hasError) return ErrorRetry(onRetry: _reload);
-          final entity = _find(snap.data!);
+          final entity = _find(all);
           if (entity == null) {
             return const Center(child: Text('الشخص ده اتحذف.'));
           }
@@ -70,10 +70,7 @@ class _EntityPageState extends State<EntityPage> {
           final canEdit = intercedeCanEdit;
 
           return RefreshIndicator(
-            onRefresh: () async {
-              _reload();
-              await _future;
-            },
+            onRefresh: _store.refresh,
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [

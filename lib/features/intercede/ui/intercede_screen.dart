@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../data/models.dart';
 import '../data/repository.dart';
+import '../data/store.dart';
 import 'answered_page.dart';
 import 'entity_page.dart';
 import 'prayer_page.dart';
@@ -20,7 +23,7 @@ class IntercedeScreen extends StatefulWidget {
 
 class _IntercedeScreenState extends State<IntercedeScreen>
     with SingleTickerProviderStateMixin {
-  late Future<List<Entity>> _future;
+  final _store = IntercedeStore.instance;
 
   /// Listened to so the FAB can mean "add prayer" or "add person" depending on
   /// which tab you are looking at.
@@ -30,7 +33,7 @@ class _IntercedeScreenState extends State<IntercedeScreen>
   @override
   void initState() {
     super.initState();
-    _future = fetchEntities();
+    _reload();
   }
 
   @override
@@ -39,9 +42,8 @@ class _IntercedeScreenState extends State<IntercedeScreen>
     super.dispose();
   }
 
-  void _reload() => setState(() {
-    _future = fetchEntities();
-  });
+  /// Background refresh — the cached list stays on screen meanwhile.
+  void _reload() => unawaited(_store.refresh());
 
   @override
   Widget build(BuildContext context) {
@@ -53,8 +55,7 @@ class _IntercedeScreenState extends State<IntercedeScreen>
             tooltip: 'بحث',
             icon: const Icon(Icons.search),
             onPressed: () async {
-              final entities = await _future;
-              if (!context.mounted) return;
+              final entities = _store.entities.value ?? const <Entity>[];
               await showSearch(
                 context: context,
                 delegate: _PrayerSearch(openPrayers(entities)),
@@ -65,9 +66,9 @@ class _IntercedeScreenState extends State<IntercedeScreen>
           IconButton(
             tooltip: 'اتستجابت',
             icon: const Icon(Icons.inventory_2_outlined),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => AnsweredPage(future: _future)),
-            ),
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const AnsweredPage())),
           ),
           IconButton(onPressed: _reload, icon: const Icon(Icons.refresh)),
         ],
@@ -79,14 +80,17 @@ class _IntercedeScreenState extends State<IntercedeScreen>
           ],
         ),
       ),
-      body: FutureBuilder<List<Entity>>(
-        future: _future,
-        builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+      body: ValueListenableBuilder<List<Entity>?>(
+        valueListenable: _store.entities,
+        builder: (context, entities, _) {
+          if (entities == null) {
+            return ValueListenableBuilder<bool>(
+              valueListenable: _store.failed,
+              builder: (context, failed, _) => failed
+                  ? ErrorRetry(onRetry: _reload)
+                  : const Center(child: CircularProgressIndicator()),
+            );
           }
-          if (snap.hasError) return ErrorRetry(onRetry: _reload);
-          final entities = snap.data!;
           return TabBarView(
             controller: _tabs,
             children: [_prayersTab(entities), _entitiesTab(entities)],
@@ -104,13 +108,8 @@ class _IntercedeScreenState extends State<IntercedeScreen>
     );
   }
 
-  Widget _refreshable({required Widget child}) => RefreshIndicator(
-    onRefresh: () async {
-      _reload();
-      await _future;
-    },
-    child: child,
-  );
+  Widget _refreshable({required Widget child}) =>
+      RefreshIndicator(onRefresh: _store.refresh, child: child);
 
   /// A ListView, not a Center, so pull-to-refresh still works on an empty tab.
   Widget _hint(String text) => ListView(
@@ -204,8 +203,7 @@ class _IntercedeScreenState extends State<IntercedeScreen>
   /// Adding from the prayers tab means picking the person here, since the tab
   /// itself is not scoped to one.
   Future<void> _addPrayerAnywhere() async {
-    final entities = await _future;
-    if (!mounted) return;
+    final entities = _store.entities.value ?? const <Entity>[];
     if (entities.isEmpty) {
       _snack('ضيف شخص الأول من تاب الأشخاص.');
       return;

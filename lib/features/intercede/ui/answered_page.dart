@@ -1,28 +1,25 @@
 import 'package:flutter/material.dart';
 
 import '../data/models.dart';
+import '../data/store.dart';
 
 /// Every answered prayer across all the people, newest first. Reached from the
 /// app bar rather than a third tab: you open it to remember, not every day.
 class AnsweredPage extends StatelessWidget {
-  const AnsweredPage({super.key, required this.future});
-  final Future<List<Entity>> future;
+  const AnsweredPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(title: const Text('اتستجابت')),
-      body: FutureBuilder<List<Entity>>(
-        future: future,
-        builder: (context, snap) {
-          if (snap.connectionState != ConnectionState.done) {
+      body: ValueListenableBuilder<List<Entity>?>(
+        valueListenable: IntercedeStore.instance.entities,
+        builder: (context, all, _) {
+          if (all == null) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (snap.hasError) {
-            return const Center(child: Text('تعذر التحميل.'));
-          }
-          final items = answeredPrayers(snap.data!);
+          final items = answeredPrayers(all);
           if (items.isEmpty) {
             return const Center(
               child: Padding(

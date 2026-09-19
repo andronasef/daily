@@ -4,6 +4,7 @@ import 'app/app.dart';
 import 'core/background.dart';
 import 'core/notifications.dart';
 import 'core/settings.dart';
+import 'features/intercede/data/store.dart';
 import 'features/leyaana/data/verse_surfaces.dart';
 
 Future<void> main() async {
@@ -12,6 +13,7 @@ Future<void> main() async {
   await Notifications.init();
   runApp(const AioApp());
   // Not awaited: network shouldn't delay first frame.
+  IntercedeStore.instance.load();
   refreshVerseSurfaces();
   initDailyPrefetch();
   prefetchJftNow();

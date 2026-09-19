@@ -19,11 +19,13 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final _s = Settings.instance;
   late final _token = TextEditingController(text: _s.sanityToken);
+  late final _gemini = TextEditingController(text: _s.geminiKey);
   String? _updateStatus;
 
   @override
   void dispose() {
     _token.dispose();
+    _gemini.dispose();
     super.dispose();
   }
 
@@ -160,6 +162,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 helperText: 'لتعديل محتوى ليا انا — بيتحفظ على الجهاز بس',
               ),
               onChanged: (v) => _s.sanityToken = v,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: TextField(
+              controller: _gemini,
+              obscureText: true,
+              autocorrect: false,
+              enableSuggestions: false,
+              decoration: const InputDecoration(
+                labelText: 'Gemini API key',
+                helperText: 'لترجمة لليوم فقط — بيتحفظ على الجهاز بس',
+              ),
+              onChanged: (v) => _s.geminiKey = v,
             ),
           ),
           const Divider(),

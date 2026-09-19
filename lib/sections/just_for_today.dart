@@ -5,9 +5,8 @@ import '../settings.dart';
 
 /// "لليوم فقط" — fully in-app: fetch jftna.org, translate to Egyptian Arabic
 /// via Gemini, render natively. Cached once per day.
-/// ponytail: key compiled into the app; fine for a personal build. Move behind
-/// a proxy only if this ever ships to other people.
-const _geminiKey = 'AIzaSyAaGbgQSSIdVhel7pxZQQrkSMcovYK2p-Q';
+/// Gemini key is entered in Settings (stored on-device).
+String get _geminiKey => Settings.instance.geminiKey;
 const _model = 'gemini-3-flash-preview';
 
 class Jft {

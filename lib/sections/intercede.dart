@@ -140,41 +140,21 @@ class _IntercedeScreenState extends State<IntercedeScreen>
           final p = it.prayer;
           final done = p.prayedToday;
           final last = p.lastPrayedAt;
-          return Card(
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 4,
-              ),
-              title: Text(
-                p.title,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: done ? theme.disabledColor : null,
-                ),
-              ),
-              subtitle: Text(
+          return _PrayerCard(
+            title: p.title,
+            meta:
                 '${it.entity.name} · ${last == null ? 'لسه' : relativeDate(last)}',
-                style: done ? TextStyle(color: theme.disabledColor) : null,
-              ),
-              trailing: done
-                  ? Icon(Icons.check, color: theme.disabledColor)
-                  : intercedeCanEdit
-                  ? FilledButton(
-                      onPressed: () => _logSingle(p),
-                      child: const Text('صليت'),
-                    )
-                  : null,
-              onTap: () async {
-                await Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        _PrayerPage(prayer: p, entityName: it.entity.name),
-                  ),
-                );
-                _reload();
-              },
-            ),
+            done: done,
+            onPray: intercedeCanEdit ? () => _logSingle(p) : null,
+            onTap: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      _PrayerPage(prayer: p, entityName: it.entity.name),
+                ),
+              );
+              _reload();
+            },
           );
         },
       ),
@@ -202,49 +182,15 @@ class _IntercedeScreenState extends State<IntercedeScreen>
       _snack('ضيف شخص الأول من تاب الأشخاص.');
       return;
     }
-    final titleC = TextEditingController();
-    var entityId = entities.first.id;
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('صلاة جديدة'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: titleC,
-              autofocus: true,
-              decoration: const InputDecoration(labelText: 'بتصلي لإيه؟'),
-            ),
-            const SizedBox(height: 12),
-            StatefulBuilder(
-              builder: (ctx, setInner) => DropdownButtonFormField<String>(
-                initialValue: entityId,
-                decoration: const InputDecoration(labelText: 'لمين؟'),
-                items: [
-                  for (final e in entities)
-                    DropdownMenuItem(value: e.id, child: Text(e.name)),
-                ],
-                onChanged: (v) => setInner(() => entityId = v ?? entityId),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('ضيف'),
-          ),
-        ],
+    final draft = await Navigator.of(context).push<_PrayerDraft>(
+      MaterialPageRoute(
+        builder: (_) =>
+            _PrayerEditorPage(heading: 'صلاة جديدة', pickFrom: entities),
       ),
     );
-    if (ok != true || titleC.text.trim().isEmpty) return;
+    if (draft == null || draft.entityId == null) return;
     try {
-      await addPrayer(entityId, titleC.text.trim());
+      await addPrayer(draft.entityId!, draft.text);
       _reload();
     } catch (e) {
       if (mounted) _snack('خطأ: $e');
@@ -577,54 +523,22 @@ class _EntityPageState extends State<_EntityPage> {
                     ),
                   ),
                 for (final p in active)
-                  Card(
-                    child: ListTile(
-                      title: Text(
-                        p.title,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Text(
+                  _PrayerCard(
+                    title: p.title,
+                    meta:
                         '${p.startedAt != null ? 'من ${_formatShortDate(p.startedAt!)}' : ''}'
                         '${p.lastPrayedAt != null ? ' · آخر مرة: ${relativeDate(p.lastPrayedAt!)}' : ''}',
-                      ),
-                      trailing: canEdit
-                          ? Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                FilledButton.tonal(
-                                  onPressed: () => _logSingle(p),
-                                  child: const Text('صليت'),
-                                ),
-                                PopupMenuButton<String>(
-                                  onSelected: (v) => _onPrayerAction(v, p),
-                                  itemBuilder: (_) => const [
-                                    PopupMenuItem(
-                                      value: 'edit',
-                                      child: Text('تعديل'),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'complete',
-                                      child: Text('إكمال'),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'delete',
-                                      child: Text('حذف'),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            )
-                          : null,
-                      onTap: () async {
-                        await Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) =>
-                                _PrayerPage(prayer: p, entityName: entity.name),
-                          ),
-                        );
-                        _reload();
-                      },
-                    ),
+                    onPray: canEdit ? () => _logSingle(p) : null,
+                    onMenu: canEdit ? () => _showPrayerMenu(p) : null,
+                    onTap: () async {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              _PrayerPage(prayer: p, entityName: entity.name),
+                        ),
+                      );
+                      _reload();
+                    },
                   ),
                 if (done.isNotEmpty)
                   ExpansionTile(
@@ -711,35 +625,59 @@ class _EntityPageState extends State<_EntityPage> {
     }
   }
 
-  Future<void> _addPrayerDialog(String entityId) async {
-    final titleC = TextEditingController();
-    final ok = await showDialog<bool>(
+  void _showPrayerMenu(Prayer p) {
+    showModalBottomSheet(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('إضافة صلاة'),
-        content: TextField(
-          controller: titleC,
-          decoration: const InputDecoration(
-            labelText: 'العنوان',
-            border: OutlineInputBorder(),
-          ),
-          autofocus: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit),
+              title: const Text('تعديل'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _onPrayerAction('edit', p);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.check_circle_outline),
+              title: const Text('إكمال'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _onPrayerAction('complete', p);
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                Icons.delete_outline,
+                color: Theme.of(ctx).colorScheme.error,
+              ),
+              title: Text(
+                'حذف',
+                style: TextStyle(color: Theme.of(ctx).colorScheme.error),
+              ),
+              onTap: () {
+                Navigator.pop(ctx);
+                _onPrayerAction('delete', p);
+              },
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('إضافة'),
-          ),
-        ],
       ),
     );
-    if (ok != true || titleC.text.trim().isEmpty) return;
+  }
+
+  Future<void> _addPrayerDialog(String entityId) async {
+    final draft = await Navigator.of(context).push<_PrayerDraft>(
+      MaterialPageRoute(
+        builder: (_) =>
+            _PrayerEditorPage(heading: 'إضافة صلاة', initialEntityId: entityId),
+      ),
+    );
+    if (draft == null) return;
     try {
-      await addPrayer(entityId, titleC.text.trim());
+      await addPrayer(entityId, draft.text);
       _reload();
     } catch (e) {
       if (mounted) _snack('خطأ: $e');
@@ -747,33 +685,15 @@ class _EntityPageState extends State<_EntityPage> {
   }
 
   Future<void> _editPrayerDialog(Prayer p) async {
-    final titleC = TextEditingController(text: p.title);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('تعديل الصلاة'),
-        content: TextField(
-          controller: titleC,
-          decoration: const InputDecoration(
-            labelText: 'العنوان',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('حفظ'),
-          ),
-        ],
+    final draft = await Navigator.of(context).push<_PrayerDraft>(
+      MaterialPageRoute(
+        builder: (_) =>
+            _PrayerEditorPage(heading: 'تعديل الصلاة', initialText: p.title),
       ),
     );
-    if (ok != true || titleC.text.trim().isEmpty) return;
+    if (draft == null) return;
     try {
-      await editPrayer(p.id, titleC.text.trim());
+      await editPrayer(p.id, draft.text);
       _reload();
     } catch (e) {
       if (mounted) _snack('خطأ: $e');
@@ -1033,6 +953,219 @@ class _AnsweredPage extends StatelessWidget {
             },
           );
         },
+      ),
+    );
+  }
+}
+
+/// One prayer, in both the flat daily list and a person's page.
+///
+/// The text owns a full-width row of its own and the actions sit on a second
+/// row underneath. A ListTile would centre the button against the text block,
+/// so "صليت" drifted up and down with how long the prayer was and the text got
+/// squeezed into whatever column the button left behind.
+class _PrayerCard extends StatelessWidget {
+  const _PrayerCard({
+    required this.title,
+    required this.meta,
+    required this.onTap,
+    this.done = false,
+    this.onPray,
+    this.onMenu,
+  });
+
+  final String title;
+  final String meta;
+  final VoidCallback onTap;
+  final bool done;
+  final VoidCallback? onPray;
+  final VoidCallback? onMenu;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final muted = theme.colorScheme.onSurfaceVariant;
+    final hasActions = onPray != null || onMenu != null || done;
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  height: 1.35,
+                  color: done ? muted : null,
+                ),
+              ),
+              if (meta.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  meta,
+                  style: theme.textTheme.bodySmall?.copyWith(color: muted),
+                ),
+              ],
+              if (hasActions) ...[
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    if (done)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.check_circle,
+                            size: 18,
+                            color: theme.colorScheme.primary,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'صليت النهاردة',
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              color: theme.colorScheme.primary,
+                            ),
+                          ),
+                        ],
+                      )
+                    else if (onPray != null)
+                      FilledButton.tonal(
+                        onPressed: onPray,
+                        child: const Text('صليت'),
+                      ),
+                    const Spacer(),
+                    if (onMenu != null)
+                      IconButton(
+                        onPressed: onMenu,
+                        icon: const Icon(Icons.more_horiz),
+                        tooltip: 'خيارات',
+                        visualDensity: VisualDensity.compact,
+                      ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A page, not a dialog: prayers are sentences, not labels, and the cramped
+/// single-line field made you edit a paragraph through a slot.
+class _PrayerEditorPage extends StatefulWidget {
+  const _PrayerEditorPage({
+    required this.heading,
+    this.initialText = '',
+    this.pickFrom,
+    this.initialEntityId,
+  });
+
+  final String heading;
+  final String initialText;
+
+  /// When present the editor also asks who the prayer is for.
+  final List<Entity>? pickFrom;
+  final String? initialEntityId;
+
+  @override
+  State<_PrayerEditorPage> createState() => _PrayerEditorPageState();
+}
+
+class _PrayerDraft {
+  _PrayerDraft(this.text, this.entityId);
+  final String text;
+  final String? entityId;
+}
+
+class _PrayerEditorPageState extends State<_PrayerEditorPage> {
+  late final TextEditingController _c = TextEditingController(
+    text: widget.initialText,
+  );
+  late String? _entityId = widget.initialEntityId ?? widget.pickFrom?.first.id;
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final text = _c.text.trim();
+    if (text.isEmpty) return;
+    Navigator.of(context).pop(_PrayerDraft(text, _entityId));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.heading),
+        actions: [
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _c,
+            builder: (context, value, _) => TextButton(
+              onPressed: value.text.trim().isEmpty ? null : _save,
+              child: const Text('حفظ'),
+            ),
+          ),
+          const SizedBox(width: 4),
+        ],
+      ),
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (widget.pickFrom != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: DropdownButtonFormField<String>(
+                  initialValue: _entityId,
+                  decoration: const InputDecoration(
+                    labelText: 'لمين؟',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  items: [
+                    for (final e in widget.pickFrom!)
+                      DropdownMenuItem(value: e.id, child: Text(e.name)),
+                  ],
+                  onChanged: (v) => setState(() => _entityId = v ?? _entityId),
+                ),
+              ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                child: TextField(
+                  controller: _c,
+                  autofocus: true,
+                  maxLines: null,
+                  expands: true,
+                  textAlignVertical: TextAlignVertical.top,
+                  keyboardType: TextInputType.multiline,
+                  textCapitalization: TextCapitalization.sentences,
+                  style: theme.textTheme.titleMedium?.copyWith(height: 1.6),
+                  decoration: InputDecoration(
+                    hintText: 'بتصلي لإيه؟',
+                    border: InputBorder.none,
+                    hintStyle: TextStyle(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

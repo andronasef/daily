@@ -13,6 +13,7 @@ class Prayer {
     this.startedAt,
     this.completedAt,
     this.outcome,
+    this.pinned = false,
     this.logs = const [],
   });
 
@@ -21,6 +22,7 @@ class Prayer {
   final DateTime? startedAt;
   final DateTime? completedAt;
   final String? outcome;
+  final bool pinned;
   final List<PrayerLog> logs;
 
   bool get isDone => completedAt != null;
@@ -90,8 +92,8 @@ class EntityPrayer {
   final Prayer prayer;
 }
 
-/// Every active prayer, not-yet-prayed-today first (most neglected at the very
-/// top), then today's done ones newest-first so the list empties as you go.
+/// Every active prayer: pinned first, then not-yet-prayed-today (most neglected
+/// at the very top), then today's done ones newest-first so the list empties as you go.
 List<EntityPrayer> openPrayers(List<Entity> entities) {
   final pending = <EntityPrayer>[];
   final done = <EntityPrayer>[];
@@ -102,6 +104,7 @@ List<EntityPrayer> openPrayers(List<Entity> entities) {
     }
   }
   pending.sort((a, b) {
+    if (a.prayer.pinned != b.prayer.pinned) return a.prayer.pinned ? -1 : 1;
     final al = a.prayer.lastPrayedAt, bl = b.prayer.lastPrayedAt;
     if (al == null && bl == null) {
       return a.prayer.title.compareTo(b.prayer.title);

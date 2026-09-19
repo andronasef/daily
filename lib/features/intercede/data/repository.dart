@@ -14,7 +14,7 @@ bool get intercedeCanEdit => sanityCanWrite;
 const _query = '''
 *[_type == "intercedeEntity"]{_id, name, note, createdAt, _createdAt,
   "prayers": *[_type == "intercedePrayer" && entity._ref == ^._id]
-    {_id, title, startedAt, completedAt, outcome, logs}}
+    {_id, title, startedAt, completedAt, outcome, pinned, logs}}
 ''';
 
 DateTime? _parseDate(dynamic v) =>
@@ -44,6 +44,7 @@ Prayer _parsePrayer(Map<String, dynamic> m) => Prayer(
   startedAt: _parseDate(m['startedAt']),
   completedAt: _parseDate(m['completedAt']),
   outcome: m['outcome']?.toString(),
+  pinned: m['pinned'] == true,
   logs: _parseLogs(m['logs']),
 );
 
@@ -124,6 +125,15 @@ Future<void> editPrayer(String id, String title) => sanityMutate([
     'patch': {
       'id': id,
       'set': {'title': title},
+    },
+  },
+]);
+
+Future<void> setPinned(String id, bool pinned) => sanityMutate([
+  {
+    'patch': {
+      'id': id,
+      'set': {'pinned': pinned},
     },
   },
 ]);

@@ -16,6 +16,16 @@ void showPrayerMenu(BuildContext context, Prayer p, VoidCallback onChanged) {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
+              leading: Icon(
+                p.pinned ? Icons.push_pin : Icons.push_pin_outlined,
+              ),
+              title: Text(p.pinned ? 'إلغاء التثبيت' : 'تثبيت'),
+              onTap: () {
+                Navigator.pop(ctx);
+                _pin(context, p, onChanged);
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.edit),
               title: const Text('تعديل'),
               onTap: () {
@@ -48,6 +58,15 @@ void showPrayerMenu(BuildContext context, Prayer p, VoidCallback onChanged) {
 
 void _snack(BuildContext context, String msg) =>
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+
+Future<void> _pin(BuildContext context, Prayer p, VoidCallback done) async {
+  try {
+    await setPinned(p.id, !p.pinned);
+    done();
+  } catch (e) {
+    if (context.mounted) _snack(context, 'خطأ: $e');
+  }
+}
 
 Future<void> _edit(BuildContext context, Prayer p, VoidCallback done) async {
   final draft = await Navigator.of(context).push<PrayerDraft>(

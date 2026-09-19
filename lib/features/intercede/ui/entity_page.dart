@@ -114,6 +114,7 @@ class _EntityPageState extends State<EntityPage> {
                     meta:
                         '${p.startedAt != null ? 'من ${formatShortDate(p.startedAt!)}' : ''}'
                         '${p.lastPrayedAt != null ? ' · آخر مرة: ${relativeDate(p.lastPrayedAt!)}' : ''}',
+                    pinned: p.pinned,
                     onPray: canEdit ? () => _logSingle(p) : null,
                     onMenu: canEdit
                         ? () => showPrayerMenu(context, p, _reload)

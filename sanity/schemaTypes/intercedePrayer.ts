@@ -17,6 +17,11 @@ export const intercedePrayer = defineType({
     }),
     defineField({name: 'startedAt', type: 'datetime'}),
     defineField({
+      name: 'pinned',
+      type: 'boolean',
+      description: 'Pinned prayers float to the top of the daily list.',
+    }),
+    defineField({
       name: 'completedAt',
       type: 'datetime',
       description: 'Set = completed, moves to the archive.',

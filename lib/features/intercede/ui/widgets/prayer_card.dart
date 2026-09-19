@@ -13,6 +13,7 @@ class PrayerCard extends StatelessWidget {
     required this.meta,
     required this.onTap,
     this.done = false,
+    this.pinned = false,
     this.onPray,
     this.onMenu,
   });
@@ -21,6 +22,7 @@ class PrayerCard extends StatelessWidget {
   final String meta;
   final VoidCallback onTap;
   final bool done;
+  final bool pinned;
   final VoidCallback? onPray;
   final VoidCallback? onMenu;
 
@@ -39,8 +41,24 @@ class PrayerCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
+              Text.rich(
+                TextSpan(
+                  children: [
+                    if (pinned)
+                      WidgetSpan(
+                        alignment: PlaceholderAlignment.middle,
+                        child: Padding(
+                          padding: const EdgeInsetsDirectional.only(end: 6),
+                          child: Icon(
+                            Icons.push_pin,
+                            size: 16,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                    TextSpan(text: title),
+                  ],
+                ),
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.titleMedium?.copyWith(

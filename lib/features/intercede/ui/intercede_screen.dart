@@ -50,6 +50,19 @@ class _IntercedeScreenState extends State<IntercedeScreen>
         title: const Text('تشفع'),
         actions: [
           IconButton(
+            tooltip: 'بحث',
+            icon: const Icon(Icons.search),
+            onPressed: () async {
+              final entities = await _future;
+              if (!context.mounted) return;
+              await showSearch(
+                context: context,
+                delegate: _PrayerSearch(openPrayers(entities)),
+              );
+              _reload();
+            },
+          ),
+          IconButton(
             tooltip: 'اتستجابت',
             icon: const Icon(Icons.inventory_2_outlined),
             onPressed: () => Navigator.of(context).push(
@@ -124,7 +137,10 @@ class _IntercedeScreenState extends State<IntercedeScreen>
         ),
       );
     }
-    final left = items.where((i) => !i.prayer.prayedToday).length;
+    // Pinned prayers are today's list; with none pinned, everything counts.
+    final hasPinned = items.any((i) => i.prayer.pinned);
+    final counted = hasPinned ? items.where((i) => i.prayer.pinned) : items;
+    final left = counted.where((i) => !i.prayer.prayedToday).length;
     return _refreshable(
       child: ListView.separated(
         padding: const EdgeInsets.all(16),
@@ -137,7 +153,7 @@ class _IntercedeScreenState extends State<IntercedeScreen>
               child: Text(
                 left == 0
                     ? 'خلصت كل صلوات النهاردة ✓'
-                    : 'فاضل $left من ${items.length}',
+                    : 'فاضل $left من ${counted.length}',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
@@ -153,6 +169,7 @@ class _IntercedeScreenState extends State<IntercedeScreen>
             meta:
                 '${it.entity.name} · ${last == null ? 'لسه' : relativeDate(last)}',
             done: done,
+            pinned: p.pinned,
             onPray: intercedeCanEdit ? () => _logSingle(p) : null,
             onMenu: intercedeCanEdit
                 ? () => showPrayerMenu(context, p, _reload)
@@ -433,6 +450,57 @@ class _IntercedeScreenState extends State<IntercedeScreen>
   void _snack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+}
+
+/// Searches prayer text and the person's name across the open prayers.
+class _PrayerSearch extends SearchDelegate<void> {
+  _PrayerSearch(this.items) : super(searchFieldLabel: 'دور في الصلوات');
+  final List<EntityPrayer> items;
+
+  @override
+  List<Widget> buildActions(BuildContext context) => [
+    if (query.isNotEmpty)
+      IconButton(icon: const Icon(Icons.clear), onPressed: () => query = ''),
+  ];
+
+  @override
+  Widget buildLeading(BuildContext context) => IconButton(
+    icon: const BackButtonIcon(),
+    onPressed: () => close(context, null),
+  );
+
+  @override
+  Widget buildResults(BuildContext context) => buildSuggestions(context);
+
+  @override
+  Widget buildSuggestions(BuildContext context) {
+    final q = query.trim();
+    final hits = items
+        .where((i) => i.prayer.title.contains(q) || i.entity.name.contains(q))
+        .toList();
+    if (hits.isEmpty) return const Center(child: Text('مفيش نتايج'));
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: hits.length,
+      itemBuilder: (context, i) {
+        final it = hits[i];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: PrayerCard(
+            title: it.prayer.title,
+            meta: it.entity.name,
+            pinned: it.prayer.pinned,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) =>
+                    PrayerPage(prayer: it.prayer, entityName: it.entity.name),
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 }
 

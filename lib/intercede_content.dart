@@ -50,6 +50,14 @@ class Prayer {
 
   bool get isDone => completedAt != null;
 
+  /// Already prayed at some point today — drives the daily checklist.
+  bool get prayedToday {
+    final l = lastPrayedAt;
+    if (l == null) return false;
+    final now = DateTime.now();
+    return l.year == now.year && l.month == now.month && l.day == now.day;
+  }
+
   DateTime? get lastPrayedAt =>
       logs.isEmpty ? null : logs.map((l) => l.prayedAt).reduce((a, b) => a.isAfter(b) ? a : b);
 }
@@ -309,3 +317,50 @@ Future<void> reopenPrayer(String id) => _mutate([
         }
       }
     ]);
+
+
+// ---- cross-entity views -----------------------------------------------------
+
+/// A prayer together with the entity it belongs to, for the flat lists that
+/// cut across entities (the daily checklist and the archive).
+class EntityPrayer {
+  EntityPrayer(this.entity, this.prayer);
+  final Entity entity;
+  final Prayer prayer;
+}
+
+/// Every active prayer, not-yet-prayed-today first (most neglected at the very
+/// top), then today's done ones newest-first so the list empties as you go.
+List<EntityPrayer> openPrayers(List<Entity> entities) {
+  final pending = <EntityPrayer>[];
+  final done = <EntityPrayer>[];
+  for (final e in entities) {
+    for (final p in e.prayers) {
+      if (p.isDone) continue;
+      (p.prayedToday ? done : pending).add(EntityPrayer(e, p));
+    }
+  }
+  pending.sort((a, b) {
+    final al = a.prayer.lastPrayedAt, bl = b.prayer.lastPrayedAt;
+    if (al == null && bl == null) {
+      return a.prayer.title.compareTo(b.prayer.title);
+    }
+    if (al == null) return -1; // never prayed = most neglected
+    if (bl == null) return 1;
+    return al.compareTo(bl);
+  });
+  done.sort((a, b) => b.prayer.lastPrayedAt!.compareTo(a.prayer.lastPrayedAt!));
+  return [...pending, ...done];
+}
+
+/// Every completed prayer across all entities, most recently answered first.
+List<EntityPrayer> answeredPrayers(List<Entity> entities) {
+  final all = <EntityPrayer>[];
+  for (final e in entities) {
+    for (final p in e.prayers) {
+      if (p.isDone) all.add(EntityPrayer(e, p));
+    }
+  }
+  all.sort((a, b) => b.prayer.completedAt!.compareTo(a.prayer.completedAt!));
+  return all;
+}

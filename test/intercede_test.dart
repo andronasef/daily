@@ -79,4 +79,53 @@ void main() {
       expect(active.map((p) => p.id).toList(), ['p2', 'p3', 'p1']);
     });
   });
+
+  group('openPrayers', () {
+    test('today\'s done ones sink below the ones still pending', () {
+      final now = DateTime.now();
+      final entities = [
+        Entity(
+          id: 'e1',
+          name: 'andrew',
+          prayers: [
+            Prayer(
+              id: 'done-today',
+              title: 'done',
+              logs: [PrayerLog(prayedAt: now)],
+            ),
+            Prayer(
+              id: 'stale',
+              title: 'stale',
+              logs: [
+                PrayerLog(prayedAt: now.subtract(const Duration(days: 30))),
+              ],
+            ),
+          ],
+        ),
+        Entity(
+          id: 'e2',
+          name: 'youssef',
+          prayers: [
+            Prayer(id: 'never', title: 'never', logs: []),
+            Prayer(
+              id: 'completed',
+              title: 'archived',
+              completedAt: now,
+              logs: [],
+            ),
+          ],
+        ),
+      ];
+
+      // never-prayed, then the stalest, then today's — and nothing completed.
+      expect(
+        openPrayers(entities).map((i) => i.prayer.id).toList(),
+        ['never', 'stale', 'done-today'],
+      );
+      expect(
+        answeredPrayers(entities).map((i) => i.prayer.id).toList(),
+        ['completed'],
+      );
+    });
+  });
 }

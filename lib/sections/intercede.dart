@@ -10,13 +10,25 @@ class IntercedeScreen extends StatefulWidget {
   State<IntercedeScreen> createState() => _IntercedeScreenState();
 }
 
-class _IntercedeScreenState extends State<IntercedeScreen> {
+class _IntercedeScreenState extends State<IntercedeScreen>
+    with SingleTickerProviderStateMixin {
   late Future<List<Entity>> _future;
+
+  /// Listened to so the FAB can mean "add prayer" or "add person" depending on
+  /// which tab you are looking at.
+  late final TabController _tabs = TabController(length: 2, vsync: this)
+    ..addListener(() => setState(() {}));
 
   @override
   void initState() {
     super.initState();
     _future = fetchEntities();
+  }
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
   }
 
   void _reload() => setState(() {
@@ -29,8 +41,22 @@ class _IntercedeScreenState extends State<IntercedeScreen> {
       appBar: AppBar(
         title: const Text('تشفع'),
         actions: [
+          IconButton(
+            tooltip: 'اتستجابت',
+            icon: const Icon(Icons.inventory_2_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => _AnsweredPage(future: _future)),
+            ),
+          ),
           IconButton(onPressed: _reload, icon: const Icon(Icons.refresh)),
         ],
+        bottom: TabBar(
+          controller: _tabs,
+          tabs: const [
+            Tab(text: 'الصلوات'),
+            Tab(text: 'الأشخاص'),
+          ],
+        ),
       ),
       body: FutureBuilder<List<Entity>>(
         future: _future,
@@ -38,76 +64,245 @@ class _IntercedeScreenState extends State<IntercedeScreen> {
           if (snap.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (snap.hasError) {
-            return _ErrorRetry(onRetry: _reload);
-          }
+          if (snap.hasError) return _ErrorRetry(onRetry: _reload);
           final entities = snap.data!;
-          if (entities.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  intercedeCanEdit
-                      ? 'لسه مضفتش حد. اضغط + علشان تضيف.'
-                      : 'علشان تضيف، حط الـ Sanity write token في الإعدادات.',
-                  textAlign: TextAlign.center,
+          return TabBarView(
+            controller: _tabs,
+            children: [_prayersTab(entities), _entitiesTab(entities)],
+          );
+        },
+      ),
+      floatingActionButton: !intercedeCanEdit
+          ? null
+          : FloatingActionButton(
+              onPressed: () => _tabs.index == 0
+                  ? _addPrayerAnywhere()
+                  : _addEntityDialog(context),
+              child: const Icon(Icons.add),
+            ),
+    );
+  }
+
+  Widget _refreshable({required Widget child}) => RefreshIndicator(
+    onRefresh: () async {
+      _reload();
+      await _future;
+    },
+    child: child,
+  );
+
+  /// A ListView, not a Center, so pull-to-refresh still works on an empty tab.
+  Widget _hint(String text) => ListView(
+    padding: const EdgeInsets.all(24),
+    children: [
+      SizedBox(
+        height: 160,
+        child: Center(child: Text(text, textAlign: TextAlign.center)),
+      ),
+    ],
+  );
+
+  // ---- tab 1: today's checklist ---------------------------------------------
+
+  Widget _prayersTab(List<Entity> entities) {
+    final theme = Theme.of(context);
+    final items = openPrayers(entities);
+    if (items.isEmpty) {
+      return _refreshable(
+        child: _hint(
+          intercedeCanEdit
+              ? 'لسه مفيش صلوات. اضغط + علشان تضيف.'
+              : 'علشان تضيف، حط الـ Sanity write token في الإعدادات.',
+        ),
+      );
+    }
+    final left = items.where((i) => !i.prayer.prayedToday).length;
+    return _refreshable(
+      child: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: items.length + 1,
+        separatorBuilder: (_, _) => const SizedBox(height: 10),
+        itemBuilder: (context, i) {
+          if (i == 0) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                left == 0
+                    ? 'خلصت كل صلوات النهاردة ✓'
+                    : 'فاضل $left من ${items.length}',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             );
           }
-          return RefreshIndicator(
-            onRefresh: () async {
-              _reload();
-              await _future;
-            },
-            child: ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: entities.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 10),
-              itemBuilder: (context, i) {
-                final e = entities[i];
-                final activeCount = e.active.length;
-                final last = e.lastPrayedAt;
-                return Card(
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    title: Text(
-                      e.name,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Text(
-                      '$activeCount صلوات شغالة · '
-                      '${last != null ? 'آخر مرة: ${relativeDate(last)}' : 'لسه معملتش حاجة'}',
-                    ),
-                    trailing: const Icon(Icons.chevron_left),
-                    onTap: () async {
-                      await Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              _EntityPage(entityId: e.id, entityName: e.name),
-                        ),
-                      );
-                      _reload();
-                    },
-                    onLongPress: intercedeCanEdit
-                        ? () => _showEntityOptions(context, e)
-                        : null,
+          final it = items[i - 1];
+          final p = it.prayer;
+          final done = p.prayedToday;
+          final last = p.lastPrayedAt;
+          return Card(
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 4,
+              ),
+              title: Text(
+                p.title,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: done ? theme.disabledColor : null,
+                ),
+              ),
+              subtitle: Text(
+                '${it.entity.name} · ${last == null ? 'لسه' : relativeDate(last)}',
+                style: done ? TextStyle(color: theme.disabledColor) : null,
+              ),
+              trailing: done
+                  ? Icon(Icons.check, color: theme.disabledColor)
+                  : intercedeCanEdit
+                  ? FilledButton(
+                      onPressed: () => _logSingle(p),
+                      child: const Text('صليت'),
+                    )
+                  : null,
+              onTap: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        _PrayerPage(prayer: p, entityName: it.entity.name),
                   ),
                 );
+                _reload();
               },
             ),
           );
         },
       ),
-      floatingActionButton: intercedeCanEdit
-          ? FloatingActionButton(
-              onPressed: () => _addEntityDialog(context),
-              child: const Icon(Icons.add),
-            )
-          : null,
+    );
+  }
+
+  Future<void> _logSingle(Prayer p) async {
+    final note = await _askNote(context);
+    if (note == null) return;
+    try {
+      await logPrayed([p.id], note: note.isEmpty ? null : note);
+      _reload();
+      if (mounted) _snack('تم ✓');
+    } catch (e) {
+      if (mounted) _snack('خطأ: $e');
+    }
+  }
+
+  /// Adding from the prayers tab means picking the person here, since the tab
+  /// itself is not scoped to one.
+  Future<void> _addPrayerAnywhere() async {
+    final entities = await _future;
+    if (!mounted) return;
+    if (entities.isEmpty) {
+      _snack('ضيف شخص الأول من تاب الأشخاص.');
+      return;
+    }
+    final titleC = TextEditingController();
+    var entityId = entities.first.id;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('صلاة جديدة'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleC,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'بتصلي لإيه؟'),
+            ),
+            const SizedBox(height: 12),
+            StatefulBuilder(
+              builder: (ctx, setInner) => DropdownButtonFormField<String>(
+                initialValue: entityId,
+                decoration: const InputDecoration(labelText: 'لمين؟'),
+                items: [
+                  for (final e in entities)
+                    DropdownMenuItem(value: e.id, child: Text(e.name)),
+                ],
+                onChanged: (v) => setInner(() => entityId = v ?? entityId),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('ضيف'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || titleC.text.trim().isEmpty) return;
+    try {
+      await addPrayer(entityId, titleC.text.trim());
+      _reload();
+    } catch (e) {
+      if (mounted) _snack('خطأ: $e');
+    }
+  }
+
+  // ---- tab 2: the people ----------------------------------------------------
+
+  Widget _entitiesTab(List<Entity> entities) {
+    if (entities.isEmpty) {
+      return _refreshable(
+        child: _hint(
+          intercedeCanEdit
+              ? 'لسه مضفتش حد. اضغط + علشان تضيف.'
+              : 'علشان تضيف، حط الـ Sanity write token في الإعدادات.',
+        ),
+      );
+    }
+    return _refreshable(
+      child: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: entities.length,
+        separatorBuilder: (_, _) => const SizedBox(height: 10),
+        itemBuilder: (context, i) {
+          final e = entities[i];
+          final activeCount = e.active.length;
+          final last = e.lastPrayedAt;
+          return Card(
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 8,
+              ),
+              title: Text(
+                e.name,
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              subtitle: Text(
+                '$activeCount صلوات شغالة · '
+                '${last != null ? 'آخر مرة: ${relativeDate(last)}' : 'لسه معملتش حاجة'}',
+              ),
+              trailing: const Icon(Icons.chevron_left),
+              onTap: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        _EntityPage(entityId: e.id, entityName: e.name),
+                  ),
+                );
+                _reload();
+              },
+              onLongPress: intercedeCanEdit
+                  ? () => _showEntityOptions(context, e)
+                  : null,
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -769,6 +964,79 @@ String _formatShortDate(DateTime d) => '${d.day}/${d.month}/${d.year}';
 
 String _formatFullDate(DateTime d) =>
     '${d.day}/${d.month}/${d.year} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+
+/// Every answered prayer across all the people, newest first. Reached from the
+/// app bar rather than a third tab: you open it to remember, not every day.
+class _AnsweredPage extends StatelessWidget {
+  const _AnsweredPage({required this.future});
+  final Future<List<Entity>> future;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(title: const Text('اتستجابت')),
+      body: FutureBuilder<List<Entity>>(
+        future: future,
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snap.hasError) {
+            return const Center(child: Text('تعذر التحميل.'));
+          }
+          final items = answeredPrayers(snap.data!);
+          if (items.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  'لسه مقفلتش أي صلاة. لما تقفل واحدة هتلاقيها هنا.',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.all(16),
+            itemCount: items.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
+            itemBuilder: (context, i) {
+              final it = items[i];
+              final p = it.prayer;
+              return Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        p.title,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${it.entity.name} · ${relativeDate(p.completedAt!)}'
+                        ' · ${p.logs.length} مرة',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      if (p.outcome != null && p.outcome!.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Text(p.outcome!),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
 
 class _ErrorRetry extends StatelessWidget {
   const _ErrorRetry({required this.onRetry});

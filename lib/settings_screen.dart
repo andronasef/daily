@@ -107,11 +107,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final timeLabel = TimeOfDay(hour: _s.notifHour, minute: _s.notifMinute)
         .format(context);
-    final dark = _s.isDark;
+    final anyReminder = _s.notifEnabled || _s.verseNotifEnabled;
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(title: const Text('الإعدادات')),
       body: ListView(
+        padding: const EdgeInsets.only(bottom: 32),
         children: [
+          const _Section('التذكيرات'),
           SwitchListTile(
             title: const Text('التذكير اليومي'),
             subtitle: Text('تنبيه واحد كل يوم الساعة $timeLabel'),
@@ -125,22 +128,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onChanged: _toggleVerse,
           ),
           ListTile(
-            enabled: _s.notifEnabled || _s.verseNotifEnabled,
+            enabled: anyReminder,
             title: const Text('وقت التذكير'),
+            subtitle: anyReminder ? null : const Text('فعّل تذكير عشان تحدد الوقت'),
             trailing: Text(timeLabel,
-                style: const TextStyle(fontWeight: FontWeight.bold)),
-            onTap: (_s.notifEnabled || _s.verseNotifEnabled) ? _pickTime : null,
+                style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: anyReminder ? cs.primary : null)),
+            onTap: anyReminder ? _pickTime : null,
           ),
-          const Divider(),
+          const _Section('المظهر'),
           SwitchListTile(
             title: const Text('الوضع الليلي'),
-            value: dark,
+            secondary: Icon(_s.isDark ? Icons.dark_mode : Icons.light_mode),
+            value: _s.isDark,
             onChanged: (v) {
               AioApp.of(context).setDark(v);
               setState(() {});
             },
           ),
-          const Divider(),
+          const _Section('حسابك'),
           ListTile(
             title: const Text('تعديل الاسم والنوع'),
             subtitle: Text('الاسم الحالي: ${_s.name}'),
@@ -149,36 +156,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
               MaterialPageRoute(builder: (_) => const Onboarding()),
             ),
           ),
-          const Divider(),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: TextField(
-              controller: _token,
-              obscureText: true,
-              autocorrect: false,
-              enableSuggestions: false,
-              decoration: const InputDecoration(
-                labelText: 'Sanity write token',
-                helperText: 'لتعديل ليا انا وتشفع — بيتحفظ على الجهاز بس',
-              ),
-              onChanged: (v) => _s.sanityToken = v,
-            ),
+          const _Section('المفاتيح'),
+          _SecretField(
+            controller: _token,
+            label: 'Sanity write token',
+            helper: 'لتعديل ليا انا وتشفع — بيتحفظ على الجهاز بس',
+            onChanged: (v) => _s.sanityToken = v,
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: TextField(
-              controller: _gemini,
-              obscureText: true,
-              autocorrect: false,
-              enableSuggestions: false,
-              decoration: const InputDecoration(
-                labelText: 'Gemini API key',
-                helperText: 'لترجمة لليوم فقط — بيتحفظ على الجهاز بس',
-              ),
-              onChanged: (v) => _s.geminiKey = v,
-            ),
+          _SecretField(
+            controller: _gemini,
+            label: 'Gemini API key',
+            helper: 'لترجمة لليوم فقط — بيتحفظ على الجهاز بس',
+            onChanged: (v) => _s.geminiKey = v,
           ),
-          const Divider(),
+          const _Section('التطبيق'),
           ListTile(
             title: const Text('التحقق من تحديث'),
             subtitle: _updateStatus == null ? null : Text(_updateStatus!),
@@ -189,4 +180,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
+}
+
+class _Section extends StatelessWidget {
+  const _Section(this.title);
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(16, 28, 16, 4),
+      child: Text(title,
+          style: t.textTheme.titleSmall?.copyWith(
+              color: t.colorScheme.primary, fontWeight: FontWeight.bold)),
+    );
+  }
+}
+
+class _SecretField extends StatefulWidget {
+  const _SecretField({
+    required this.controller,
+    required this.label,
+    required this.helper,
+    required this.onChanged,
+  });
+  final TextEditingController controller;
+  final String label, helper;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_SecretField> createState() => _SecretFieldState();
+}
+
+class _SecretFieldState extends State<_SecretField> {
+  bool _hidden = true;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: TextField(
+          controller: widget.controller,
+          obscureText: _hidden,
+          autocorrect: false,
+          enableSuggestions: false,
+          textDirection: TextDirection.ltr,
+          decoration: InputDecoration(
+            labelText: widget.label,
+            helperText: widget.helper,
+            border: const OutlineInputBorder(),
+            suffixIcon: IconButton(
+              tooltip: _hidden ? 'إظهار' : 'إخفاء',
+              icon: Icon(_hidden ? Icons.visibility : Icons.visibility_off),
+              onPressed: () => setState(() => _hidden = !_hidden),
+            ),
+          ),
+          onChanged: widget.onChanged,
+        ),
+      );
 }

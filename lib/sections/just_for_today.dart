@@ -120,7 +120,11 @@ class _JustForTodayScreenState extends State<JustForTodayScreen> {
     return jft;
   }
 
-  void _refresh() => setState(() => _future = _load(force: true));
+  void _refresh() {
+    setState(() {
+      _future = _load(force: true);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

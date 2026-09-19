@@ -109,7 +109,11 @@ class _ManagerTabState extends State<_ManagerTab> {
     super.dispose();
   }
 
-  void _reload() => setState(() => _future = fetchRawForEdit(widget.type));
+  void _reload() {
+    setState(() {
+      _future = fetchRawForEdit(widget.type);
+    });
+  }
 
   void _resetForm() {
     for (final c in _controllers.values) {

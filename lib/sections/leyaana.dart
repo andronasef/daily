@@ -21,7 +21,12 @@ class _LeyaanaScreenState extends State<LeyaanaScreen> {
     _future = loadDailyContent();
   }
 
-  void _reload() => setState(() => _future = loadDailyContent());
+  void _reload() {
+    final f = loadDailyContent();
+    setState(() {
+      _future = f;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -20,8 +20,8 @@ class _IntercedeScreenState extends State<IntercedeScreen> {
   }
 
   void _reload() => setState(() {
-        _future = fetchEntities();
-      });
+    _future = fetchEntities();
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -71,18 +71,25 @@ class _IntercedeScreenState extends State<IntercedeScreen> {
                 return Card(
                   child: ListTile(
                     contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
-                    title: Text(e.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    title: Text(
+                      e.name,
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     subtitle: Text(
                       '$activeCount صلوات شغالة · '
                       '${last != null ? 'آخر مرة: ${relativeDate(last)}' : 'لسه معملتش حاجة'}',
                     ),
                     trailing: const Icon(Icons.chevron_left),
                     onTap: () async {
-                      await Navigator.of(context).push(MaterialPageRoute(
-                        builder: (_) => _EntityPage(entityId: e.id),
-                      ));
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              _EntityPage(entityId: e.id, entityName: e.name),
+                        ),
+                      );
                       _reload();
                     },
                     onLongPress: intercedeCanEdit
@@ -120,11 +127,14 @@ class _IntercedeScreenState extends State<IntercedeScreen> {
               },
             ),
             ListTile(
-              leading: Icon(Icons.delete_outline,
-                  color: Theme.of(ctx).colorScheme.error),
-              title: Text('حذف',
-                  style:
-                      TextStyle(color: Theme.of(ctx).colorScheme.error)),
+              leading: Icon(
+                Icons.delete_outline,
+                color: Theme.of(ctx).colorScheme.error,
+              ),
+              title: Text(
+                'حذف',
+                style: TextStyle(color: Theme.of(ctx).colorScheme.error),
+              ),
               onTap: () {
                 Navigator.pop(ctx);
                 _confirmDeleteEntity(ctx, e);
@@ -149,32 +159,40 @@ class _IntercedeScreenState extends State<IntercedeScreen> {
             TextField(
               controller: nameC,
               decoration: const InputDecoration(
-                  labelText: 'الاسم', border: OutlineInputBorder()),
+                labelText: 'الاسم',
+                border: OutlineInputBorder(),
+              ),
               autofocus: true,
             ),
             const SizedBox(height: 12),
             TextField(
               controller: noteC,
               decoration: const InputDecoration(
-                  labelText: 'ملاحظة (اختياري)', border: OutlineInputBorder()),
+                labelText: 'ملاحظة (اختياري)',
+                border: OutlineInputBorder(),
+              ),
               maxLines: 2,
             ),
           ],
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('إلغاء')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('إضافة')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('إضافة'),
+          ),
         ],
       ),
     );
     if (ok != true || nameC.text.trim().isEmpty) return;
     try {
-      await addEntity(nameC.text.trim(),
-          note: noteC.text.trim().isEmpty ? null : noteC.text.trim());
+      await addEntity(
+        nameC.text.trim(),
+        note: noteC.text.trim().isEmpty ? null : noteC.text.trim(),
+      );
       _reload();
     } catch (e) {
       if (mounted) _snack('خطأ: $e');
@@ -194,31 +212,40 @@ class _IntercedeScreenState extends State<IntercedeScreen> {
             TextField(
               controller: nameC,
               decoration: const InputDecoration(
-                  labelText: 'الاسم', border: OutlineInputBorder()),
+                labelText: 'الاسم',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: noteC,
               decoration: const InputDecoration(
-                  labelText: 'ملاحظة', border: OutlineInputBorder()),
+                labelText: 'ملاحظة',
+                border: OutlineInputBorder(),
+              ),
               maxLines: 2,
             ),
           ],
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('إلغاء')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('إلغاء'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('حفظ')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('حفظ'),
+          ),
         ],
       ),
     );
     if (ok != true || nameC.text.trim().isEmpty) return;
     try {
-      await editEntity(entity.id, nameC.text.trim(),
-          note: noteC.text.trim().isEmpty ? null : noteC.text.trim());
+      await editEntity(
+        entity.id,
+        nameC.text.trim(),
+        note: noteC.text.trim().isEmpty ? null : noteC.text.trim(),
+      );
       _reload();
     } catch (e) {
       if (mounted) _snack('خطأ: $e');
@@ -232,11 +259,13 @@ class _IntercedeScreenState extends State<IntercedeScreen> {
         content: Text('متأكد إنك عايز تحذف "${e.name}" وكل صلواته؟'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('لأ')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('لأ'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('احذف')),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('احذف'),
+          ),
         ],
       ),
     );
@@ -258,8 +287,9 @@ class _IntercedeScreenState extends State<IntercedeScreen> {
 // ---- entity page ------------------------------------------------------------
 
 class _EntityPage extends StatefulWidget {
-  const _EntityPage({required this.entityId});
+  const _EntityPage({required this.entityId, required this.entityName});
   final String entityId;
+  final String entityName;
 
   @override
   State<_EntityPage> createState() => _EntityPageState();
@@ -275,8 +305,8 @@ class _EntityPageState extends State<_EntityPage> {
   }
 
   void _reload() => setState(() {
-        _future = fetchEntities();
-      });
+    _future = fetchEntities();
+  });
 
   Entity? _find(List<Entity> all) {
     for (final e in all) {
@@ -289,7 +319,13 @@ class _EntityPageState extends State<_EntityPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('...')),
+      appBar: AppBar(title: Text(widget.entityName)),
+      floatingActionButton: intercedeCanEdit
+          ? FloatingActionButton(
+              onPressed: () => _addPrayerDialog(widget.entityId),
+              child: const Icon(Icons.add),
+            )
+          : null,
       body: FutureBuilder<List<Entity>>(
         future: _future,
         builder: (context, snap) {
@@ -306,135 +342,136 @@ class _EntityPageState extends State<_EntityPage> {
           final done = entity.archived;
           final canEdit = intercedeCanEdit;
 
-          return Scaffold(
-            appBar: AppBar(title: Text(entity.name)),
-            body: RefreshIndicator(
-              onRefresh: () async {
-                _reload();
-                await _future;
-              },
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  if (entity.note != null && entity.note!.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Text(entity.note!,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant)),
-                    ),
-                  if (canEdit && active.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: FilledButton.icon(
-                        onPressed: () => _logAll(active),
-                        icon: const Icon(Icons.favorite),
-                        label: const Text('صليت لكلهم'),
+          return RefreshIndicator(
+            onRefresh: () async {
+              _reload();
+              await _future;
+            },
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                if (entity.note != null && entity.note!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      entity.note!,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
-                  if (active.isEmpty && done.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Center(
-                        child: Text(
-                          canEdit
-                              ? 'لسه مضفتش صلوات. اضغط + علشان تضيف.'
-                              : 'علشان تضيف، حط الـ Sanity write token في الإعدادات.',
-                          textAlign: TextAlign.center,
-                        ),
+                  ),
+                if (canEdit && active.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: FilledButton.icon(
+                      onPressed: () => _logAll(active),
+                      icon: const Icon(Icons.favorite),
+                      label: const Text('صليت لكلهم'),
+                    ),
+                  ),
+                if (active.isEmpty && done.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Center(
+                      child: Text(
+                        canEdit
+                            ? 'لسه مضفتش صلوات. اضغط + علشان تضيف.'
+                            : 'علشان تضيف، حط الـ Sanity write token في الإعدادات.',
+                        textAlign: TextAlign.center,
                       ),
                     ),
-                  for (final p in active)
-                    Card(
-                      child: ListTile(
-                        title: Text(p.title,
-                            style:
-                                const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text(
-                          '${p.startedAt != null ? 'من ${_formatShortDate(p.startedAt!)}' : ''}'
-                          '${p.lastPrayedAt != null ? ' · آخر مرة: ${relativeDate(p.lastPrayedAt!)}' : ''}',
-                        ),
-                        trailing: canEdit
-                            ? Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  FilledButton.tonal(
-                                    onPressed: () =>
-                                        _logSingle(p),
-                                    child: const Text('صليت'),
-                                  ),
-                                  PopupMenuButton<String>(
-                                    onSelected: (v) =>
-                                        _onPrayerAction(v, p),
-                                    itemBuilder: (_) => const [
-                                      PopupMenuItem(
-                                          value: 'edit',
-                                          child: Text('تعديل')),
-                                      PopupMenuItem(
-                                          value: 'complete',
-                                          child: Text('إكمال')),
-                                      PopupMenuItem(
-                                          value: 'delete',
-                                          child: Text('حذف')),
-                                    ],
-                                  ),
-                                ],
-                              )
-                            : null,
-                        onTap: () async {
-                          await Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) => _PrayerPage(
-                                prayer: p, entityName: entity.name),
-                          ));
-                          _reload();
-                        },
+                  ),
+                for (final p in active)
+                  Card(
+                    child: ListTile(
+                      title: Text(
+                        p.title,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                    ),
-                  if (done.isNotEmpty)
-                    ExpansionTile(
-                      title: Text('المكتمل (${done.length})'),
-                      children: [
-                        for (final p in done)
-                          Card(
-                            child: ListTile(
-                              title: Text(p.title),
-                              subtitle: p.outcome != null &&
-                                      p.outcome!.isNotEmpty
-                                  ? Text(p.outcome!,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis)
-                                  : null,
-                              trailing: canEdit
-                                  ? TextButton(
-                                      onPressed: () async {
-                                        await reopenPrayer(p.id);
-                                        _reload();
-                                      },
-                                      child: const Text('رجّعها'),
-                                    )
-                                  : null,
-                              onTap: () async {
-                                await Navigator.of(context)
-                                    .push(MaterialPageRoute(
-                                  builder: (_) => _PrayerPage(
-                                      prayer: p,
-                                      entityName: entity.name),
-                                ));
-                                _reload();
-                              },
-                            ),
+                      subtitle: Text(
+                        '${p.startedAt != null ? 'من ${_formatShortDate(p.startedAt!)}' : ''}'
+                        '${p.lastPrayedAt != null ? ' · آخر مرة: ${relativeDate(p.lastPrayedAt!)}' : ''}',
+                      ),
+                      trailing: canEdit
+                          ? Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                FilledButton.tonal(
+                                  onPressed: () => _logSingle(p),
+                                  child: const Text('صليت'),
+                                ),
+                                PopupMenuButton<String>(
+                                  onSelected: (v) => _onPrayerAction(v, p),
+                                  itemBuilder: (_) => const [
+                                    PopupMenuItem(
+                                      value: 'edit',
+                                      child: Text('تعديل'),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'complete',
+                                      child: Text('إكمال'),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'delete',
+                                      child: Text('حذف'),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            )
+                          : null,
+                      onTap: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                _PrayerPage(prayer: p, entityName: entity.name),
                           ),
-                      ],
+                        );
+                        _reload();
+                      },
                     ),
-                ],
-              ),
+                  ),
+                if (done.isNotEmpty)
+                  ExpansionTile(
+                    title: Text('المكتمل (${done.length})'),
+                    children: [
+                      for (final p in done)
+                        Card(
+                          child: ListTile(
+                            title: Text(p.title),
+                            subtitle: p.outcome != null && p.outcome!.isNotEmpty
+                                ? Text(
+                                    p.outcome!,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  )
+                                : null,
+                            trailing: canEdit
+                                ? TextButton(
+                                    onPressed: () async {
+                                      await reopenPrayer(p.id);
+                                      _reload();
+                                    },
+                                    child: const Text('رجّعها'),
+                                  )
+                                : null,
+                            onTap: () async {
+                              await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => _PrayerPage(
+                                    prayer: p,
+                                    entityName: entity.name,
+                                  ),
+                                ),
+                              );
+                              _reload();
+                            },
+                          ),
+                        ),
+                    ],
+                  ),
+              ],
             ),
-            floatingActionButton: canEdit
-                ? FloatingActionButton(
-                    onPressed: () => _addPrayerDialog(entity.id),
-                    child: const Icon(Icons.add),
-                  )
-                : null,
           );
         },
       ),
@@ -457,8 +494,10 @@ class _EntityPageState extends State<_EntityPage> {
     final note = await _askNote(context);
     if (note == null) return;
     try {
-      await logPrayed(active.map((p) => p.id).toList(),
-          note: note.isEmpty ? null : note);
+      await logPrayed(
+        active.map((p) => p.id).toList(),
+        note: note.isEmpty ? null : note,
+      );
       _reload();
       if (mounted) _snack('تم ✓');
     } catch (e) {
@@ -486,16 +525,20 @@ class _EntityPageState extends State<_EntityPage> {
         content: TextField(
           controller: titleC,
           decoration: const InputDecoration(
-              labelText: 'العنوان', border: OutlineInputBorder()),
+            labelText: 'العنوان',
+            border: OutlineInputBorder(),
+          ),
           autofocus: true,
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('إلغاء')),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('إضافة')),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('إضافة'),
+          ),
         ],
       ),
     );
@@ -517,15 +560,19 @@ class _EntityPageState extends State<_EntityPage> {
         content: TextField(
           controller: titleC,
           decoration: const InputDecoration(
-              labelText: 'العنوان', border: OutlineInputBorder()),
+            labelText: 'العنوان',
+            border: OutlineInputBorder(),
+          ),
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('إلغاء')),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('حفظ')),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('حفظ'),
+          ),
         ],
       ),
     );
@@ -547,23 +594,29 @@ class _EntityPageState extends State<_EntityPage> {
         content: TextField(
           controller: outcomeC,
           decoration: const InputDecoration(
-              labelText: 'النتيجة (اختياري)', border: OutlineInputBorder()),
+            labelText: 'النتيجة (اختياري)',
+            border: OutlineInputBorder(),
+          ),
           maxLines: 3,
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('إلغاء')),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
           FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('إكمال')),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('إكمال'),
+          ),
         ],
       ),
     );
     if (ok != true) return;
     try {
-      await completePrayer(p.id,
-          outcome: outcomeC.text.trim().isEmpty ? null : outcomeC.text.trim());
+      await completePrayer(
+        p.id,
+        outcome: outcomeC.text.trim().isEmpty ? null : outcomeC.text.trim(),
+      );
       _reload();
     } catch (e) {
       if (mounted) _snack('خطأ: $e');
@@ -577,11 +630,13 @@ class _EntityPageState extends State<_EntityPage> {
         content: Text('متأكد إنك عايز تحذف "${p.title}"؟'),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('لأ')),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('لأ'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('احذف')),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('احذف'),
+          ),
         ],
       ),
     );
@@ -623,13 +678,19 @@ class _PrayerPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text(entityName,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          Text(
+            entityName,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
           const SizedBox(height: 8),
-          Text(header,
-              style: theme.textTheme.headlineSmall
-                  ?.copyWith(fontWeight: FontWeight.bold)),
+          Text(
+            header,
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           if (prayer.isDone && prayer.outcome != null) ...[
             const SizedBox(height: 8),
             Chip(label: Text('مكتمل: ${prayer.outcome}')),
@@ -641,8 +702,11 @@ class _PrayerPage extends StatelessWidget {
             for (final log in logs)
               Card(
                 child: ListTile(
-                  leading: Icon(Icons.circle,
-                      size: 10, color: theme.colorScheme.primary),
+                  leading: Icon(
+                    Icons.circle,
+                    size: 10,
+                    color: theme.colorScheme.primary,
+                  ),
                   title: Text(_formatFullDate(log.prayedAt)),
                   subtitle: log.note != null && log.note!.isNotEmpty
                       ? Text(log.note!)
@@ -673,15 +737,19 @@ Future<String?> _askNote(BuildContext context) async {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('ملاحظة (اختياري)',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const Text(
+            'ملاحظة (اختياري)',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
           const SizedBox(height: 12),
           TextField(
             controller: noteC,
             maxLines: 3,
             autofocus: true,
             decoration: const InputDecoration(
-                hintText: 'اكتب ملاحظة...', border: OutlineInputBorder()),
+              hintText: 'اكتب ملاحظة...',
+              border: OutlineInputBorder(),
+            ),
           ),
           const SizedBox(height: 12),
           FilledButton(
@@ -697,8 +765,7 @@ Future<String?> _askNote(BuildContext context) async {
   return noteC.text.trim();
 }
 
-String _formatShortDate(DateTime d) =>
-    '${d.day}/${d.month}/${d.year}';
+String _formatShortDate(DateTime d) => '${d.day}/${d.month}/${d.year}';
 
 String _formatFullDate(DateTime d) =>
     '${d.day}/${d.month}/${d.year} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
@@ -708,14 +775,13 @@ class _ErrorRetry extends StatelessWidget {
   final VoidCallback onRetry;
   @override
   Widget build(BuildContext context) => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('تعذر التحميل. اتأكد من الاتصال بالإنترنت.'),
-            const SizedBox(height: 12),
-            FilledButton(
-                onPressed: onRetry, child: const Text('إعادة المحاولة')),
-          ],
-        ),
-      );
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text('تعذر التحميل. اتأكد من الاتصال بالإنترنت.'),
+        const SizedBox(height: 12),
+        FilledButton(onPressed: onRetry, child: const Text('إعادة المحاولة')),
+      ],
+    ),
+  );
 }

@@ -60,10 +60,14 @@ class Settings {
   bool get verseNotifEnabled => _prefs.getBool(_verseNotif) ?? false;
   set verseNotifEnabled(bool v) => _prefs.setBool(_verseNotif, v);
 
-  /// Sanity write token, entered in Settings (stored on-device).
+  /// Sanity write token for the ليا انا editor and تشفع. Entered in Settings,
+  /// kept on-device.
   String get sanityToken => _prefs.getString('sanityWriteToken') ?? '';
   set sanityToken(String v) => _prefs.setString('sanityWriteToken', v.trim());
 
+  /// Gemini API key for the لليوم فقط translation. Entered in Settings.
+  String get geminiKey => _prefs.getString('geminiKey') ?? '';
+  set geminiKey(String v) => _prefs.setString('geminiKey', v.trim());
   // Generic string cache (used by sections 2 & 3 for offline/per-day data).
   String? getCache(String key) => _prefs.getString(key);
   Future<void> setCache(String key, String value) =>

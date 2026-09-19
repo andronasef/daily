@@ -69,11 +69,14 @@ const _sanityProjectId = 'kfme7y2v';
 const _sanityDataset = 'production';
 const _sanityApiVersion = 'v2024-01-01';
 
-/// Paste your Sanity write token here (or pass --dart-define=SANITY_WRITE_TOKEN=...).
-/// Needed only for the ليا انا add/edit/delete screen. Reads work without it.
-/// ponytail: token compiled into the app — fine for a personal build; anyone
-/// with the APK could write to the dataset. Move behind a proxy if it ships.
-const _writeToken = String.fromEnvironment('SANITY_WRITE_TOKEN', defaultValue: '');
+/// Write token: entered in Settings (stored on-device). --dart-define=SANITY_WRITE_TOKEN
+/// is a fallback for dev builds. Needed only for the ليا انا add/edit/delete screen.
+const _envToken = String.fromEnvironment('SANITY_WRITE_TOKEN', defaultValue: '');
+
+String get _writeToken {
+  final t = Settings.instance.sanityToken;
+  return t.isNotEmpty ? t : _envToken;
+}
 
 bool get leyaanaCanEdit => _writeToken.isNotEmpty;
 

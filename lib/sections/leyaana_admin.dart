@@ -15,8 +15,7 @@ class LeyaanaAdminScreen extends StatelessWidget {
           child: Padding(
             padding: EdgeInsets.all(24),
             child: Text(
-              'علشان تعدّل، لازم تحط Sanity write token في lib/leyaana_content.dart '
-              '(أو --dart-define=SANITY_WRITE_TOKEN=...).',
+              'علشان تعدّل، حط Sanity write token في الإعدادات.',
               textAlign: TextAlign.center,
             ),
           ),

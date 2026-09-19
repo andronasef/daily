@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:ota_update/ota_update.dart';
+
+import 'updater.dart';
 
 import 'main.dart';
 import 'settings.dart';
@@ -15,6 +18,37 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   final _s = Settings.instance;
+  late final _token = TextEditingController(text: _s.sanityToken);
+  late final _gemini = TextEditingController(text: _s.geminiKey);
+  String? _updateStatus;
+
+  @override
+  void dispose() {
+    _token.dispose();
+    _gemini.dispose();
+    super.dispose();
+  }
+
+  Future<void> _update() async {
+    setState(() => _updateStatus = 'بندوّر على تحديث…');
+    try {
+      final u = await checkForUpdate();
+      if (u == null) {
+        setState(() => _updateStatus = 'إنت على آخر إصدار.');
+        return;
+      }
+      installUpdate(u).listen(
+        (e) => setState(() => _updateStatus = switch (e.status) {
+              OtaStatus.DOWNLOADING => 'تحميل ${u.version}… ${e.value}%',
+              OtaStatus.INSTALLING => 'بنثبّت…',
+              _ => 'تعذّر التحديث: ${e.status.name}',
+            }),
+        onError: (_) => setState(() => _updateStatus = 'تعذّر التحديث.'),
+      );
+    } catch (_) {
+      setState(() => _updateStatus = 'تعذّر الاتصال بالتحديثات.');
+    }
+  }
 
   Future<void> _toggleReminder(bool on) async {
     if (on) {
@@ -114,6 +148,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const Onboarding()),
             ),
+          ),
+          const Divider(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: TextField(
+              controller: _token,
+              obscureText: true,
+              autocorrect: false,
+              enableSuggestions: false,
+              decoration: const InputDecoration(
+                labelText: 'Sanity write token',
+                helperText: 'لتعديل ليا انا وتشفع — بيتحفظ على الجهاز بس',
+              ),
+              onChanged: (v) => _s.sanityToken = v,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: TextField(
+              controller: _gemini,
+              obscureText: true,
+              autocorrect: false,
+              enableSuggestions: false,
+              decoration: const InputDecoration(
+                labelText: 'Gemini API key',
+                helperText: 'لترجمة لليوم فقط — بيتحفظ على الجهاز بس',
+              ),
+              onChanged: (v) => _s.geminiKey = v,
+            ),
+          ),
+          const Divider(),
+          ListTile(
+            title: const Text('التحقق من تحديث'),
+            subtitle: _updateStatus == null ? null : Text(_updateStatus!),
+            trailing: const Icon(Icons.system_update),
+            onTap: _update,
           ),
         ],
       ),

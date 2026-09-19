@@ -41,10 +41,15 @@ class _IntercedeScreenState extends State<IntercedeScreen> {
           }
           final entities = snap.data!;
           if (entities.isEmpty) {
-            return const Center(
+            return Center(
               child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Text('لسه مضفتش حد. اضغط + علشان تضيف.'),
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  intercedeCanEdit
+                      ? 'لسه مضفتش حد. اضغط + علشان تضيف.'
+                      : 'علشان تضيف، حط الـ Sanity write token في الإعدادات.',
+                  textAlign: TextAlign.center,
+                ),
               ),
             );
           }
@@ -324,9 +329,16 @@ class _EntityPageState extends State<_EntityPage> {
                       ),
                     ),
                   if (active.isEmpty && done.isEmpty)
-                    const Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Center(child: Text('لسه مضفتش صلوات. اضغط + علشان تضيف.')),
+                    Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Center(
+                        child: Text(
+                          canEdit
+                              ? 'لسه مضفتش صلوات. اضغط + علشان تضيف.'
+                              : 'علشان تضيف، حط الـ Sanity write token في الإعدادات.',
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
                     ),
                   for (final p in active)
                     Card(

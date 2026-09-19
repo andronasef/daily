@@ -6,6 +6,7 @@ import 'intercede_screen.dart';
 import 'prayer_page.dart';
 import 'widgets/prayer_card.dart';
 import 'widgets/prayer_editor_page.dart';
+import 'widgets/prayer_menu.dart';
 
 class EntityPage extends StatefulWidget {
   const EntityPage({
@@ -114,7 +115,9 @@ class _EntityPageState extends State<EntityPage> {
                         '${p.startedAt != null ? 'من ${formatShortDate(p.startedAt!)}' : ''}'
                         '${p.lastPrayedAt != null ? ' · آخر مرة: ${relativeDate(p.lastPrayedAt!)}' : ''}',
                     onPray: canEdit ? () => _logSingle(p) : null,
-                    onMenu: canEdit ? () => _showPrayerMenu(p) : null,
+                    onMenu: canEdit
+                        ? () => showPrayerMenu(context, p, _reload)
+                        : null,
                     onTap: () async {
                       await Navigator.of(context).push(
                         MaterialPageRoute(
@@ -199,60 +202,6 @@ class _EntityPageState extends State<EntityPage> {
     }
   }
 
-  void _onPrayerAction(String action, Prayer p) {
-    switch (action) {
-      case 'edit':
-        _editPrayerDialog(p);
-      case 'complete':
-        _completePrayerDialog(p);
-      case 'delete':
-        _deletePrayerConfirm(p);
-    }
-  }
-
-  void _showPrayerMenu(Prayer p) {
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.edit),
-              title: const Text('تعديل'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _onPrayerAction('edit', p);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.check_circle_outline),
-              title: const Text('إكمال'),
-              onTap: () {
-                Navigator.pop(ctx);
-                _onPrayerAction('complete', p);
-              },
-            ),
-            ListTile(
-              leading: Icon(
-                Icons.delete_outline,
-                color: Theme.of(ctx).colorScheme.error,
-              ),
-              title: Text(
-                'حذف',
-                style: TextStyle(color: Theme.of(ctx).colorScheme.error),
-              ),
-              onTap: () {
-                Navigator.pop(ctx);
-                _onPrayerAction('delete', p);
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Future<void> _addPrayerDialog(String entityId) async {
     final draft = await Navigator.of(context).push<PrayerDraft>(
       MaterialPageRoute(
@@ -263,86 +212,6 @@ class _EntityPageState extends State<EntityPage> {
     if (draft == null) return;
     try {
       await addPrayer(entityId, draft.text);
-      _reload();
-    } catch (e) {
-      if (mounted) _snack('خطأ: $e');
-    }
-  }
-
-  Future<void> _editPrayerDialog(Prayer p) async {
-    final draft = await Navigator.of(context).push<PrayerDraft>(
-      MaterialPageRoute(
-        builder: (_) =>
-            PrayerEditorPage(heading: 'تعديل الصلاة', initialText: p.title),
-      ),
-    );
-    if (draft == null) return;
-    try {
-      await editPrayer(p.id, draft.text);
-      _reload();
-    } catch (e) {
-      if (mounted) _snack('خطأ: $e');
-    }
-  }
-
-  Future<void> _completePrayerDialog(Prayer p) async {
-    final outcomeC = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('اتستجابت؟ إيه اللي حصل؟'),
-        content: TextField(
-          controller: outcomeC,
-          decoration: const InputDecoration(
-            labelText: 'النتيجة (اختياري)',
-            border: OutlineInputBorder(),
-          ),
-          maxLines: 3,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('إكمال'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    try {
-      await completePrayer(
-        p.id,
-        outcome: outcomeC.text.trim().isEmpty ? null : outcomeC.text.trim(),
-      );
-      _reload();
-    } catch (e) {
-      if (mounted) _snack('خطأ: $e');
-    }
-  }
-
-  Future<void> _deletePrayerConfirm(Prayer p) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        content: Text('متأكد إنك عايز تحذف "${p.title}"؟'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('لأ'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('احذف'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    try {
-      await deletePrayer(p.id);
       _reload();
     } catch (e) {
       if (mounted) _snack('خطأ: $e');

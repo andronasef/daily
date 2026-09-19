@@ -7,6 +7,7 @@ import 'entity_page.dart';
 import 'prayer_page.dart';
 import 'widgets/prayer_card.dart';
 import 'widgets/prayer_editor_page.dart';
+import 'widgets/prayer_menu.dart';
 
 /// Section "تشفع": intercession tracker — entities you pray for, their prayers,
 /// and a log of every time you prayed.
@@ -153,6 +154,9 @@ class _IntercedeScreenState extends State<IntercedeScreen>
                 '${it.entity.name} · ${last == null ? 'لسه' : relativeDate(last)}',
             done: done,
             onPray: intercedeCanEdit ? () => _logSingle(p) : null,
+            onMenu: intercedeCanEdit
+                ? () => showPrayerMenu(context, p, _reload)
+                : null,
             onTap: () async {
               await Navigator.of(context).push(
                 MaterialPageRoute(

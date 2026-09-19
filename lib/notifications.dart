@@ -3,6 +3,7 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
+import 'leyaana_content.dart';
 import 'settings.dart';
 
 /// One daily local reminder at the user's chosen time.
@@ -10,6 +11,8 @@ class Notifications {
   static final _plugin = FlutterLocalNotificationsPlugin();
   static const _id = 1;
   static const _channelId = 'daily_reminder';
+  static const _verseBaseId = 100;
+  static const verseDays = 14;
 
   static Future<void> init() async {
     tzdata.initializeTimeZones();
@@ -84,4 +87,42 @@ class Notifications {
   }
 
   static Future<void> cancel() => _plugin.cancel(id: _id);
+
+  /// One non-repeating notification per upcoming day carrying that day's verse
+  /// (a repeating one would keep a stale body). Fires at the reminder time.
+  static Future<void> scheduleVerses(Map<String, Verse> byDay) async {
+    await cancelVerses();
+    final first = _nextInstance(
+        Settings.instance.notifHour, Settings.instance.notifMinute);
+    for (var i = 0; i < verseDays; i++) {
+      final t = tz.TZDateTime(tz.local, first.year, first.month,
+          first.day + i, first.hour, first.minute);
+      final v = byDay[getPeriodKey('daily', t)];
+      if (v == null) continue;
+      await _plugin.zonedSchedule(
+        id: _verseBaseId + i,
+        title: v.title ?? 'آية اليوم',
+        body: v.verse,
+        scheduledDate: t,
+        notificationDetails: NotificationDetails(
+          android: AndroidNotificationDetails(
+            'daily_verse',
+            'آية اليوم',
+            channelDescription: 'آية اليوم كاملة في الإشعار',
+            importance: Importance.high,
+            priority: Priority.high,
+            styleInformation: BigTextStyleInformation(v.verse),
+          ),
+          iOS: const DarwinNotificationDetails(),
+        ),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      );
+    }
+  }
+
+  static Future<void> cancelVerses() async {
+    for (var i = 0; i < verseDays; i++) {
+      await _plugin.cancel(id: _verseBaseId + i);
+    }
+  }
 }

@@ -4,6 +4,7 @@ import 'main.dart';
 import 'settings.dart';
 import 'notifications.dart';
 import 'onboarding.dart';
+import 'verse_surfaces.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -32,6 +33,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() => _s.notifEnabled = on);
   }
 
+  Future<void> _toggleVerse(bool on) async {
+    if (on) {
+      final granted = await Notifications.requestPermission();
+      if (!granted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('لازم تسمح بالإشعارات من إعدادات الجهاز.')));
+        }
+        return;
+      }
+    }
+    _s.verseNotifEnabled = on;
+    if (on) {
+      await refreshVerseSurfaces();
+    } else {
+      await Notifications.cancelVerses();
+    }
+    setState(() {});
+  }
+
   Future<void> _pickTime() async {
     final picked = await showTimePicker(
       context: context,
@@ -44,6 +65,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (_s.notifEnabled) {
       await Notifications.schedule(picked.hour, picked.minute);
     }
+    if (_s.verseNotifEnabled) await refreshVerseSurfaces();
     setState(() {});
   }
 
@@ -62,12 +84,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             value: _s.notifEnabled,
             onChanged: _toggleReminder,
           ),
+          SwitchListTile(
+            title: const Text('آية اليوم في الإشعار'),
+            subtitle: const Text('إشعار بالآية كاملة في نفس وقت التذكير'),
+            value: _s.verseNotifEnabled,
+            onChanged: _toggleVerse,
+          ),
           ListTile(
-            enabled: _s.notifEnabled,
+            enabled: _s.notifEnabled || _s.verseNotifEnabled,
             title: const Text('وقت التذكير'),
             trailing: Text(timeLabel,
                 style: const TextStyle(fontWeight: FontWeight.bold)),
-            onTap: _s.notifEnabled ? _pickTime : null,
+            onTap: (_s.notifEnabled || _s.verseNotifEnabled) ? _pickTime : null,
           ),
           const Divider(),
           SwitchListTile(

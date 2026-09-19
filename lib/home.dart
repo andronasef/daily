@@ -4,6 +4,7 @@ import 'settings_screen.dart';
 import 'sections/cross_work.dart';
 import 'sections/leyaana.dart';
 import 'sections/just_for_today.dart';
+import 'sections/intercede.dart';
 import 'sections/journal.dart';
 
 class _Section {
@@ -25,6 +26,8 @@ class HomePage extends StatelessWidget {
         () => const JustForTodayScreen()),
     _Section('مسلم', 'سلّم يومك واكتب للروح القدس', Icons.edit_note,
         () => const JournalScreen()),
+    _Section('تشفع', 'اللي بتصليلهم', Icons.volunteer_activism_outlined,
+        () => const IntercedeScreen()),
   ];
 
   @override

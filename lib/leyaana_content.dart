@@ -213,6 +213,20 @@ Future<void> deleteDoc(String id) => _mutate([
       }
     ]);
 
+/// Personalized daily verse for the UTC day of each of [dates], keyed by
+/// getPeriodKey('daily'). One fetch, so notifications + widget can be
+/// precomputed for the next N days without a background worker.
+Future<Map<String, Verse>> dailyVersesFor(Iterable<DateTime> dates) async {
+  final verses = [...await _fetchType('verse')]..sort(_compare);
+  if (verses.isEmpty) return {};
+  final person = Settings.instance.personKey;
+  return {
+    for (final d in dates)
+      getPeriodKey('daily', d): _parseVerse(verses[
+          pickIndex(getPeriodKey('daily', d), person, 'verse', verses.length)])
+  };
+}
+
 Future<DailyContent> loadDailyContent() async {
   final results = await Future.wait([
     _fetchType('verse'),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../data/models.dart';
+import '../data/repository.dart';
+import 'widgets/prayer_menu.dart';
 
 class PrayerPage extends StatelessWidget {
   const PrayerPage({super.key, required this.prayer, required this.entityName});
@@ -20,7 +22,18 @@ class PrayerPage extends StatelessWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(prayer.title)),
+      appBar: AppBar(
+        title: Text(prayer.title),
+        actions: [
+          if (intercedeCanEdit)
+            IconButton(
+              icon: const Icon(Icons.more_vert),
+              // ponytail: the page shows a snapshot, so any change closes it and the caller reloads.
+              onPressed: () =>
+                  showPrayerMenu(context, prayer, () => Navigator.pop(context)),
+            ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

@@ -473,6 +473,21 @@ class _PrayerSearch extends SearchDelegate<void> {
   @override
   Widget buildResults(BuildContext context) => buildSuggestions(context);
 
+  Future<void> _pray(BuildContext context, Prayer p) async {
+    final note = await askNote(context);
+    if (note == null) return;
+    try {
+      await logPrayed([p.id], note: note.isEmpty ? null : note);
+      if (context.mounted) close(context, null);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('خطأ: $e')));
+      }
+    }
+  }
+
   @override
   Widget buildSuggestions(BuildContext context) {
     final q = query.trim();
@@ -491,6 +506,15 @@ class _PrayerSearch extends SearchDelegate<void> {
             title: it.prayer.title,
             meta: it.entity.name,
             pinned: it.prayer.pinned,
+            // ponytail: results are a snapshot, so any change closes the search and the tab reloads.
+            onPray: intercedeCanEdit ? () => _pray(context, it.prayer) : null,
+            onMenu: intercedeCanEdit
+                ? () => showPrayerMenu(
+                    context,
+                    it.prayer,
+                    () => close(context, null),
+                  )
+                : null,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) =>

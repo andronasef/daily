@@ -280,13 +280,13 @@ class _MemorizeScreenState extends State<MemorizeScreen> {
                     ),
                     const SizedBox(height: 16),
                     const Text(
-                      'لا توجد آيات للحفظ في Sanity بعد',
+                      'لا توجد آيات للحفظ بعد',
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'اضغط على زر (+) لإضافة أول آية للحفظ.\nستُحفظ سحابياً في Sanity فوراً وتعمل بدون إنترنت!',
+                      'اضغط على زر (+) لإضافة أول آية للحفظ.\nستُحفظ سحابياً فوراً وتعمل أيضاً بدون إنترنت!',
                       style: TextStyle(
                         fontSize: 13,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,

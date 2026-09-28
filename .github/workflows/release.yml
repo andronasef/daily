@@ -32,7 +32,8 @@ jobs:
           python3 - << 'EOF'
           import os, base64
           raw = os.environ.get('KEYSTORE_BASE64', '')
-          cleaned = ''.join(raw.split())
+          valid_chars = set('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=')
+          cleaned = ''.join(c for c in raw if c in valid_chars)
           decoded = base64.b64decode(cleaned)
           with open('android/app/release.jks', 'wb') as f:
               f.write(decoded)

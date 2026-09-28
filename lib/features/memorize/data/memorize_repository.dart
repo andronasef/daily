@@ -32,9 +32,12 @@ class MemorizeRepository {
 
   static const _outboxKey = 'memorize:outbox';
   bool _flushing = false;
+  bool _initialized = false;
 
   /// Ensures database is open, deletes legacy mock starter cards, and syncs from Sanity
   Future<void> ensureInitialized() async {
+    if (_initialized) return;
+    _initialized = true;
     final db = await MemorizeDb.open();
     // Wipe any legacy starter cards so only true Sanity data is kept
     await db.deleteStarterVerses();
@@ -162,13 +165,16 @@ class MemorizeRepository {
           .toSet();
 
       for (final local in localVerses) {
-        if (!serverIds.contains(local.id) &&
+        // Only remove items that originally came from Sanity and were deleted on server.
+        // Never remove custom offline/local verses unless explicitly deleted by user.
+        if (local.source == 'sanity' &&
+            !serverIds.contains(local.id) &&
             !pendingCreates.contains(local.id)) {
           await db.delete(local.id);
         }
       }
 
-      return updatedList;
+      return await db.getAll();
     } catch (e) {
       debugPrint('Error refreshing memorize verses from Sanity: $e');
       final db = await MemorizeDb.open();

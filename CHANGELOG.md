@@ -2,6 +2,28 @@
 
 All notable changes to **يومي** (Daily AIO).
 
+## [1.1.0] — 2026-09-28
+
+### Added
+- **حفظ الآيات (Scripture Memorization)** — Anki SM-2 spaced repetition system to memorize Bible verses effectively.
+  - Interactive practice flow with 4 modes: Anki Flashcards, Voice Recording Studio, Reveal Challenge, and First-Letter Typing.
+  - Multi-take voice recorder with individual playback, duration tracking, and delete option.
+  - One-tap "تم حفظها خلاص ✅" (Mastered) toggle to mark verses as memorized or return them to review.
+  - Continuous audio playlist player to listen to all recorded verses sequentially.
+  - Instant search and status filtering (Due today, Learning, Mastered, With voice recording).
+  - Optional verse translation on creation.
+- **Sanity-First & Offline-First Architecture**:
+  - Full Sanity CMS integration (`memorizeVerse` and `verseCategory` schemas).
+  - Outbox queue pattern (matching `تشفع` / `IntercedeStore`) for 100% offline support — add, edit, delete, and grade verses without network connectivity with automatic background sync to Sanity.
+  - Automatic and instant cloud upload for voice recordings to the Sanity Assets API (`audioFile`).
+  - Automatic cleanup of local audio files upon verse deletion.
+- **تشفع (Intercede)** — persistent prayer list and intercession tracker with offline-first caching, outbox mutations, and home hub integration.
+- **OTA Updates & Signing** — in-app OTA updater checking GitHub releases, signed release automation via GitHub Actions.
+
+### Changed
+- Streamlined Memorize screen to a single direct "آياتي" view.
+- Upgraded Android toolchain build support with OpenJDK 17.
+
 ## [1.0.0] — 2026-07-24
 
 First release. Native Flutter app, Android.

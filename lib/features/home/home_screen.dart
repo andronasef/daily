@@ -4,6 +4,7 @@ import '../cross_work/cross_work_screen.dart';
 import '../intercede/ui/intercede_screen.dart';
 import '../just_for_today/ui/just_for_today_screen.dart';
 import '../leyaana/ui/leyaana_screen.dart';
+import '../memorize/ui/memorize_screen.dart';
 import '../settings/settings_screen.dart';
 // import '../journal/ui/journal_screen.dart';
 
@@ -30,6 +31,12 @@ class HomePage extends StatelessWidget {
       'آية النهارده واسم من أسماء الله',
       Icons.auto_awesome,
       () => const LeyaanaScreen(),
+    ),
+    _Section(
+      'حفظ الآيات',
+      'تكرار متباعد (Anki) وتسجيل صوتي',
+      Icons.psychology_outlined,
+      () => const MemorizeScreen(),
     ),
     _Section(
       'لليوم فقط',

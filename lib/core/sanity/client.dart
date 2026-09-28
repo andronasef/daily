@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 
 import '../settings.dart';
@@ -60,4 +61,34 @@ Future<void> sanityMutate(
   if (res.statusCode != 200) {
     throw Exception('Sanity ${res.statusCode}: ${res.body}');
   }
+}
+
+Future<Map<String, dynamic>> sanityUploadFile({
+  required Uint8List bytes,
+  required String filename,
+  String contentType = 'audio/m4a',
+}) async {
+  if (sanityWriteToken.isEmpty) {
+    throw Exception('مطلوب Sanity write token في الإعدادات لرفع الملفات.');
+  }
+  final uri = Uri.parse(
+    'https://$sanityProjectId.api.sanity.io/$sanityApiVersion/assets/files/$sanityDataset?filename=$filename',
+  );
+  final res = await http
+      .post(
+        uri,
+        headers: {
+          'Content-Type': contentType,
+          'Authorization': 'Bearer $sanityWriteToken',
+        },
+        body: bytes,
+      )
+      .timeout(const Duration(seconds: 45));
+
+  if (res.statusCode != 200 && res.statusCode != 201) {
+    throw Exception('فشل رفع الملف إلى Sanity (${res.statusCode}): ${res.body}');
+  }
+
+  final body = jsonDecode(res.body) as Map<String, dynamic>;
+  return body['document'] as Map<String, dynamic>;
 }

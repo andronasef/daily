@@ -4,6 +4,8 @@ on:
   push:
     tags: ['v[0-9]+.[0-9]+.[0-9]+']
 
+  workflow_dispatch:
+
 permissions:
   contents: write
 
@@ -18,13 +20,34 @@ jobs:
         with: { channel: stable, cache: true }
 
       - name: Restore signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release.jks
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::KEYSTORE_BASE64 secret is not configured or empty"
+            exit 1
+          fi
+          python3 - << 'EOF'
+          import os, base64
+          raw = os.environ.get('KEYSTORE_BASE64', '')
+          cleaned = ''.join(raw.split())
+          decoded = base64.b64decode(cleaned)
+          with open('android/app/release.jks', 'wb') as f:
+              f.write(decoded)
+          EOF
+          if [ ! -s android/app/release.jks ]; then
+            echo "::error::android/app/release.jks is empty after decoding"
+            exit 1
+          fi
+          keytool -list -keystore android/app/release.jks -storepass "$KEYSTORE_PASSWORD" > /dev/null
+          echo "Keystore verified successfully."
           cat > android/key.properties <<EOP
           storeFile=release.jks
-          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
-          keyAlias=${{ secrets.KEY_ALIAS }}
-          keyPassword=${{ secrets.KEYSTORE_PASSWORD }}
+          storePassword=$KEYSTORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEYSTORE_PASSWORD
           EOP
 
       # versionName = tag, versionCode = run number (must grow for OTA installs)

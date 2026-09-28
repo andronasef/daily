@@ -42,8 +42,7 @@ jobs:
             echo "::error::android/app/release.jks is empty after decoding"
             exit 1
           fi
-          keytool -list -keystore android/app/release.jks -storepass "$KEYSTORE_PASSWORD" > /dev/null
-          echo "Keystore verified successfully."
+          ls -lh android/app/release.jks
           cat > android/key.properties <<EOP
           storeFile=release.jks
           storePassword=$KEYSTORE_PASSWORD

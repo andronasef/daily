@@ -30,25 +30,46 @@ jobs:
             exit 1
           fi
           python3 - << 'EOF'
-          import os, base64
-          raw = os.environ.get('KEYSTORE_BASE64', '')
+          import os, base64, subprocess
+
+          def clean_secret(val):
+              if not val:
+                  return ''
+              return val.strip('\ufeff \r\n\t')
+
+          raw_keystore = os.environ.get('KEYSTORE_BASE64', '')
           valid_chars = set('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=')
-          cleaned = ''.join(c for c in raw if c in valid_chars)
-          decoded = base64.b64decode(cleaned)
+          cleaned_keystore = ''.join(c for c in raw_keystore if c in valid_chars)
+          decoded = base64.b64decode(cleaned_keystore)
           with open('android/app/release.jks', 'wb') as f:
               f.write(decoded)
+
+          password = clean_secret(os.environ.get('KEYSTORE_PASSWORD', ''))
+          alias = clean_secret(os.environ.get('KEY_ALIAS', ''))
+
+          with open('android/key.properties', 'w', encoding='utf-8') as f:
+              f.write('storeFile=release.jks\n')
+              f.write(f'storePassword={password}\n')
+              f.write(f'keyAlias={alias}\n')
+              f.write(f'keyPassword={password}\n')
+
+          # Verify with keytool in Python
+          res = subprocess.run([
+              'keytool', '-list',
+              '-keystore', 'android/app/release.jks',
+              '-storepass', password,
+              '-alias', alias
+          ], capture_output=True, text=True)
+          if res.returncode == 0:
+              print(f"Keystore and alias '{alias}' verified successfully!")
+          else:
+              print(f"Notice: keytool check output: {res.stderr.strip()}")
           EOF
           if [ ! -s android/app/release.jks ]; then
             echo "::error::android/app/release.jks is empty after decoding"
             exit 1
           fi
           ls -lh android/app/release.jks
-          cat > android/key.properties <<EOP
-          storeFile=release.jks
-          storePassword=$KEYSTORE_PASSWORD
-          keyAlias=$KEY_ALIAS
-          keyPassword=$KEYSTORE_PASSWORD
-          EOP
 
       # versionName = tag, versionCode = run number (must grow for OTA installs)
       - run: flutter pub get

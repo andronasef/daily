@@ -21,6 +21,8 @@ class _TypingChallengeViewState extends State<TypingChallengeView> {
   int _currentIndex = 0;
   bool _isWrong = false;
   bool _isCompleted = false;
+  bool _showHint = false;
+  bool _fullWordMode = false;
 
   @override
   void initState() {
@@ -48,7 +50,6 @@ class _TypingChallengeViewState extends State<TypingChallengeView> {
   void _onInputChanged(String text) {
     if (text.isEmpty || _isCompleted || _currentIndex >= _words.length) return;
 
-    final typedChar = _normalizeArabic(text.characters.last);
     final targetWord = _words[_currentIndex];
     final normalizedTarget = _normalizeArabic(targetWord);
 
@@ -56,27 +57,50 @@ class _TypingChallengeViewState extends State<TypingChallengeView> {
       // Punctuation only word, skip
       setState(() {
         _currentIndex++;
+        _showHint = false;
       });
       _checkCompletion();
       _inputController.clear();
       return;
     }
 
-    final expectedChar = normalizedTarget.characters.first;
-
-    if (typedChar == expectedChar) {
-      setState(() {
-        _currentIndex++;
-        _isWrong = false;
-      });
-      _checkCompletion();
+    if (_fullWordMode) {
+      final normalizedInput = _normalizeArabic(text);
+      if (normalizedInput == normalizedTarget) {
+        setState(() {
+          _currentIndex++;
+          _isWrong = false;
+          _showHint = false;
+        });
+        _checkCompletion();
+        _inputController.clear();
+      } else if (normalizedTarget.startsWith(normalizedInput)) {
+        setState(() {
+          _isWrong = false;
+        });
+      } else {
+        setState(() {
+          _isWrong = true;
+        });
+      }
     } else {
-      setState(() {
-        _isWrong = true;
-      });
-    }
+      final typedChar = _normalizeArabic(text.characters.last);
+      final expectedChar = normalizedTarget.characters.first;
 
-    _inputController.clear();
+      if (typedChar == expectedChar) {
+        setState(() {
+          _currentIndex++;
+          _isWrong = false;
+          _showHint = false;
+        });
+        _checkCompletion();
+      } else {
+        setState(() {
+          _isWrong = true;
+        });
+      }
+      _inputController.clear();
+    }
   }
 
   void _checkCompletion() {
@@ -93,6 +117,7 @@ class _TypingChallengeViewState extends State<TypingChallengeView> {
       _currentIndex = 0;
       _isWrong = false;
       _isCompleted = false;
+      _showHint = false;
     });
     _inputController.clear();
     _focusNode.requestFocus();
@@ -132,6 +157,30 @@ class _TypingChallengeViewState extends State<TypingChallengeView> {
           ),
           const SizedBox(height: 16),
 
+          // Mode selector
+          SegmentedButton<bool>(
+            segments: const [
+              ButtonSegment<bool>(
+                value: false,
+                label: Text('الحرف الأول (من الذاكرة)'),
+                icon: Icon(Icons.abc_rounded),
+              ),
+              ButtonSegment<bool>(
+                value: true,
+                label: Text('الكلمة كاملة'),
+                icon: Icon(Icons.text_fields_rounded),
+              ),
+            ],
+            selected: {_fullWordMode},
+            onSelectionChanged: (set) {
+              setState(() {
+                _fullWordMode = set.first;
+                _restart();
+              });
+            },
+          ),
+          const SizedBox(height: 16),
+
           // Verse Words display
           Card(
             child: Padding(
@@ -166,10 +215,13 @@ class _TypingChallengeViewState extends State<TypingChallengeView> {
                       }
 
                       if (isCurrent) {
+                        final currentWord = _words[i];
+                        final displayHint = _showHint && currentWord.isNotEmpty;
+
                         return Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
+                            horizontal: 8,
+                            vertical: 3,
                           ),
                           decoration: BoxDecoration(
                             color: _isWrong
@@ -180,16 +232,21 @@ class _TypingChallengeViewState extends State<TypingChallengeView> {
                               color: _isWrong
                                   ? Colors.red
                                   : theme.colorScheme.primary,
+                              width: 1.5,
                             ),
                           ),
                           child: Text(
-                            '${_words[i].characters.first}...',
+                            displayHint
+                                ? '${currentWord.characters.first}...'
+                                : (_fullWordMode ? '_____' : '___'),
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: _isWrong
                                   ? Colors.red
-                                  : theme.colorScheme.primary,
+                                  : (_showHint
+                                      ? Colors.amber.shade900
+                                      : theme.colorScheme.primary),
                             ),
                           ),
                         );
@@ -259,7 +316,9 @@ class _TypingChallengeViewState extends State<TypingChallengeView> {
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               decoration: InputDecoration(
-                hintText: 'اكتب الحرف الأول من الكلمة التالية...',
+                hintText: _fullWordMode
+                    ? 'اكتب الكلمة كاملة هنا...'
+                    : 'اكتب الحرف الأول للكلمة من ذاكرتك...',
                 hintStyle: TextStyle(
                   fontSize: 14,
                   color: theme.colorScheme.onSurfaceVariant,
@@ -274,23 +333,43 @@ class _TypingChallengeViewState extends State<TypingChallengeView> {
                     color: _isWrong ? Colors.red : theme.dividerColor,
                   ),
                 ),
-                suffixIcon: IconButton(
-                  tooltip: 'مساعدة: تخطي كلمة',
-                  icon: const Icon(Icons.skip_next_rounded),
-                  onPressed: () {
-                    setState(() {
-                      _currentIndex++;
-                      _isWrong = false;
-                    });
-                    _checkCompletion();
-                  },
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: _showHint ? 'إخفاء التلميح' : 'تلميح: إظهار الحرف الأول',
+                      icon: Icon(
+                        _showHint ? Icons.lightbulb : Icons.lightbulb_outline,
+                        color: _showHint ? Colors.amber : null,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _showHint = !_showHint;
+                        });
+                      },
+                    ),
+                    IconButton(
+                      tooltip: 'مساعدة: تخطي كلمة',
+                      icon: const Icon(Icons.skip_next_rounded),
+                      onPressed: () {
+                        setState(() {
+                          _currentIndex++;
+                          _isWrong = false;
+                          _showHint = false;
+                        });
+                        _checkCompletion();
+                      },
+                    ),
+                  ],
                 ),
               ),
               onChanged: _onInputChanged,
             ),
             const SizedBox(height: 12),
             Text(
-              'اكتب أول حرف فقط من كل كلمة على لوحة المفاتيح لتكمل الآية تلقائياً!',
+              _fullWordMode
+                  ? 'اكتب الكلمة كاملة لتثبيت الآية حرفاً بحرف!'
+                  : 'الكلمة التالية مخفية — فكّر في الكلمة واكتب أول حرف فقط من الذاكرة!',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,

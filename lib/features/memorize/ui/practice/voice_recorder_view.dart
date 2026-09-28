@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../../../core/sanity/client.dart';
@@ -211,10 +212,28 @@ class _VoiceRecorderViewState extends State<VoiceRecorderView> {
     } catch (e) {
       setState(() => _uploadingIds.remove(recording.id));
       if (!isAutomatic && mounted) {
+        String msg = 'التسجيل محفوظ محلياً على جهازك. تعذر الرفع السحابي حالياً.';
+        final err = e.toString();
+        if (err.contains('401') ||
+            err.contains('Unauthorized') ||
+            err.contains('Session not found')) {
+          msg =
+              'التسجيل محفوظ محلياً ويعمل بدون إنترنت. توكن Sanity غير صالح أو انتهت صلاحيته.';
+        } else if (err.contains('SocketException') ||
+            err.contains('timed out')) {
+          msg = 'التسجيل محفوظ محلياً. لا يوجد اتصال بالإنترنت للرفع السحابي حالياً.';
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('حدث خطأ أثناء الرفع إلى Sanity: $e'),
-            backgroundColor: Colors.red,
+            content: Row(
+              children: [
+                const Icon(Icons.info_outline, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(child: Text(msg)),
+              ],
+            ),
+            backgroundColor: Colors.orange.shade800,
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -451,7 +470,10 @@ class _VoiceRecorderViewState extends State<VoiceRecorderView> {
                 return ValueListenableBuilder<AudioPlayState>(
                   valueListenable: _audio.playState,
                   builder: (context, playState, _) {
-                    final audioUri = rec.sanityUrl ?? rec.localPath;
+                    final hasLocalFile = File(rec.localPath).existsSync();
+                    final audioUri = hasLocalFile
+                        ? rec.localPath
+                        : (rec.sanityUrl ?? rec.localPath);
                     final isPlaying =
                         _audio.currentPlayingUri.value == audioUri &&
                             playState == AudioPlayState.playing;
@@ -519,10 +541,48 @@ class _VoiceRecorderViewState extends State<VoiceRecorderView> {
                                                   ),
                                                   SizedBox(width: 4),
                                                   Text(
-                                                    'Sanity',
+                                                    'سحابي',
                                                     style: TextStyle(
                                                       fontSize: 10,
                                                       color: Colors.green,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            )
+                                          else
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 6,
+                                                vertical: 2,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: theme
+                                                    .colorScheme
+                                                    .primaryContainer
+                                                    .withValues(alpha: 0.5),
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    Icons.phone_android_rounded,
+                                                    size: 12,
+                                                    color: theme
+                                                        .colorScheme.primary,
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  Text(
+                                                    'محلي',
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      color: theme
+                                                          .colorScheme.primary,
                                                       fontWeight:
                                                           FontWeight.bold,
                                                     ),

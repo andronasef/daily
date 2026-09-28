@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../data/repository.dart';
 import 'leyaana_admin_screen.dart';
 
@@ -83,23 +84,32 @@ class _LeyaanaScreenState extends State<LeyaanaScreen> {
   }
 }
 
-/// Soft rounded card matching leyaana's paper (radius ~24).
+/// Soft rounded card matching leyaana's paper (radius ~24) with long press support.
 class _SoftCard extends StatelessWidget {
-  const _SoftCard({required this.child});
+  const _SoftCard({required this.child, this.onLongPress});
   final Widget child;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+    return Material(
+      color: theme.colorScheme.surface,
+      borderRadius: BorderRadius.circular(24),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onLongPress: onLongPress,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: theme.dividerColor),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: theme.dividerColor),
+          ),
+          child: child,
+        ),
       ),
-      child: child,
     );
   }
 }
@@ -108,13 +118,84 @@ class _VersesTab extends StatelessWidget {
   const _VersesTab({required this.content});
   final DailyContent content;
 
+  static const _arabicDays = [
+    'الاثنين',
+    'الثلاثاء',
+    'الأربعاء',
+    'الخميس',
+    'الجمعة',
+    'السبت',
+    'الأحد',
+  ];
+
+  static const _arabicMonths = [
+    'يناير',
+    'فبراير',
+    'مارس',
+    'أبريل',
+    'مايو',
+    'يونيو',
+    'يوليو',
+    'أغسطس',
+    'سبتمبر',
+    'أكتوبر',
+    'نوفمبر',
+    'ديسمبر',
+  ];
+
+  static String _formatDate(DateTime now) {
+    final dayName = _arabicDays[now.weekday - 1];
+    final monthName = _arabicMonths[now.month - 1];
+    return '$dayName، ${now.day} $monthName ${now.year}';
+  }
+
+  static String _formatWeek(DateTime now) {
+    final weekOfMonth = ((now.day - 1) ~/ 7) + 1;
+    final firstDayOfYear = DateTime(now.year, 1, 1);
+    final dayOfYear = now.difference(firstDayOfYear).inDays + 1;
+    final weekOfYear = ((dayOfYear - 1) ~/ 7) + 1;
+    return 'الأسبوع $weekOfMonth في الشهر • الأسبوع $weekOfYear في السنة';
+  }
+
+  static String _formatMonth(DateTime now) {
+    final monthName = _arabicMonths[now.month - 1];
+    return 'شهر ${now.month} ($monthName ${now.year})';
+  }
+
+  void _copyVerse(BuildContext context, Verse verse) {
+    final text = verse.title != null && verse.title!.isNotEmpty
+        ? '${verse.verse}\n— ${verse.title}'
+        : verse.verse;
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Row(
+          children: [
+            Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+            SizedBox(width: 8),
+            Text('تم نسخ الآية إلى الحافظة'),
+          ],
+        ),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final rows = <(String, Verse?)>[
-      ('آية النهارده', content.dailyVerse),
-      ('آية الأسبوع', content.weeklyVerse),
-      ('آية الشهر', content.monthlyVerse),
-    ].where((r) => r.$2 != null).toList();
+    final now = DateTime.now();
+
+    final rows = <(String, String, Verse)>[
+      if (content.dailyVerse != null)
+        ('آية النهارده', _formatDate(now), content.dailyVerse!),
+      if (content.weeklyVerse != null)
+        ('آية الأسبوع', _formatWeek(now), content.weeklyVerse!),
+      if (content.monthlyVerse != null)
+        ('آية الشهر', _formatMonth(now), content.monthlyVerse!),
+    ];
 
     if (rows.isEmpty) return const _Empty('مفيش آيات متاحة دلوقتي.');
 
@@ -122,23 +203,50 @@ class _VersesTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        for (final (label, verse) in rows)
+        for (final (label, meta, verse) in rows)
           Padding(
             padding: const EdgeInsets.only(bottom: 14),
             child: _SoftCard(
+              onLongPress: () => _copyVerse(context, verse),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    label,
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.primary,
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        label,
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            meta,
+                            textAlign: TextAlign.end,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onPrimaryContainer,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 12),
                   Text(
-                    '"${verse!.verse}"',
+                    '"${verse.verse}"',
                     style: theme.textTheme.headlineSmall?.copyWith(
                       height: 1.8,
                       fontWeight: FontWeight.bold,
@@ -154,6 +262,25 @@ class _VersesTab extends StatelessWidget {
                       ),
                     ),
                   ],
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Icon(
+                        Icons.touch_app_outlined,
+                        size: 13,
+                        color: theme.colorScheme.outline.withValues(alpha: 0.6),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'اضغط مطولاً للنسخ',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontSize: 11,
+                          color: theme.colorScheme.outline.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -168,6 +295,30 @@ class _NamedTab extends StatelessWidget {
   final NamedContent? item;
   final String emptyLabel;
 
+  void _copy(BuildContext context, NamedContent it) {
+    final parts = [
+      it.name,
+      if (it.mean != null && it.mean!.isNotEmpty) it.mean!,
+      if (it.content != null && it.content!.isNotEmpty) it.content!,
+    ];
+    Clipboard.setData(ClipboardData(text: parts.join('\n')));
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Row(
+          children: [
+            Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+            SizedBox(width: 8),
+            Text('تم النسخ إلى الحافظة'),
+          ],
+        ),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (item == null) return _Empty(emptyLabel);
@@ -176,6 +327,7 @@ class _NamedTab extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       children: [
         _SoftCard(
+          onLongPress: () => _copy(context, item!),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -202,6 +354,25 @@ class _NamedTab extends StatelessWidget {
                   style: theme.textTheme.bodyLarge?.copyWith(height: 1.9),
                 ),
               ],
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Icon(
+                    Icons.touch_app_outlined,
+                    size: 13,
+                    color: theme.colorScheme.outline.withValues(alpha: 0.6),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'اضغط مطولاً للنسخ',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontSize: 11,
+                      color: theme.colorScheme.outline.withValues(alpha: 0.7),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),

@@ -59,6 +59,7 @@ class _IntercedeScreenState extends State<IntercedeScreen>
             initialValue: _sort,
             onSelected: (sort) async {
               await Settings.instance.setIntercedeSort(sort.name);
+              await _store.republish();
               if (mounted) setState(() {});
             },
             itemBuilder: (_) => [

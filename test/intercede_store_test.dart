@@ -48,7 +48,7 @@ void main() {
     }
     applyMutation(json, prayerLogMutation('p1', at: at, key: 'event2'));
     expect(prayer(json)['logs'], hasLength(2));
-    expect(() => prayerLogMutation('p1', key: '\"bad'), throwsArgumentError);
+    expect(() => prayerLogMutation('p1', key: '"bad'), throwsArgumentError);
   });
   test('patch set pins a nested prayer', () {
     final json = fixture();

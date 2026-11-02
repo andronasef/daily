@@ -2,6 +2,15 @@
 
 All notable changes to **يومي** (Daily AIO).
 
+## [Unreleased]
+
+### Added
+- Android **تشفع اليوم** home-screen widget with offline prayer marking, up to five requests, and local-day reset.
+- Shared saved prayer sorting for the app, search, and widget: daily random (default), most neglected, oldest, newest, and alphabetical. Pending pinned requests stay first.
+
+### Fixed
+- Prayer log retries and widget tap replay preserve the original event time without duplicating logs.
+
 ## [1.1.0] — 2026-09-28
 
 ### Added

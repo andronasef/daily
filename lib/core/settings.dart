@@ -77,6 +77,9 @@ class Settings {
 
   // Generic string cache (used by sections 2 & 3 for offline/per-day data).
   String? getCache(String key) => _prefs.getString(key);
-  Future<void> setCache(String key, String value) =>
-      _prefs.setString(key, value);
+  Future<void> setCache(String key, String value) async {
+    if (!await _prefs.setString(key, value)) {
+      throw StateError('Could not save $key');
+    }
+  }
 }

@@ -19,22 +19,26 @@ Intercession requests come to the user from the home screen, in a random order t
 
 ### Active
 
-- [ ] User can add a تشفع home-screen widget showing a prayed/total count and up to 5 un-prayed requests
-- [ ] User can tap a request on the widget to mark it prayed, without opening the app and while offline
-- [ ] Widget taps are logged with the time of the tap, not the time the app is next opened
-- [ ] Widget's prayed-today state resets after midnight without opening the app
-- [ ] User can sort the in-app list by random (default), most neglected, oldest added, newest added, or alphabetical
-- [ ] Sort choice persists and applies to the in-app list, search, and the widget
-- [ ] Random order is stable for a calendar day and reshuffles once a day
-- [ ] Pinned requests stay on top in every sort mode, including random
-- [ ] Requests prayed today sort to the bottom in every sort mode
-- [ ] Retried or replayed prayer logs never create duplicate entries
+- [x] User can add a تشفع home-screen widget showing a prayed/total count and up to 5 un-prayed requests
+- [x] User can tap a request on the widget to mark it prayed, without opening the app and while offline
+- [x] Widget taps are logged with the time of the tap, not the time the app is next opened
+- [x] Widget's prayed-today state resets after midnight without opening the app
+- [x] User can sort the in-app list by random (default), most neglected, oldest added, newest added, or alphabetical
+- [x] Sort choice persists and applies to the in-app list, search, and the widget
+- [x] Random order is stable for a calendar day and reshuffles once a day
+- [x] Pinned requests stay on top in every sort mode, including random
+- [x] Requests prayed today sort to the bottom in every sort mode
+- [x] Retried or replayed prayer logs never create duplicate entries
 
 ### Out of Scope
 
 - iOS widget — the repo has no `ios/` target
 - Scrollable widget list (`RemoteViewsService`) — five fixed rows are enough for now
 - Reshuffling in Kotlin at midnight — would duplicate the sort logic in two languages; the widget takes the new order when the app next opens
+
+## Validation
+
+Implemented in quick task 261102-wr9. All 46 tests pass, static analysis is clean, and Android debug APK builds. Emulator install/launch passed; widget placement/taps and midnight behavior remain unverified because the mandated device input tool failed. The reset alarm is inexact. See the quick-task summary for evidence and limitations.
 
 ## Context
 
@@ -57,13 +61,13 @@ Intercession requests come to the user from the home screen, in a random order t
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| One sort setting shared by app and widget, default random | User asked for both to behave the same | — Pending |
-| Random seeded by day + request id, using a small stable hash | Prevents reshuffling on rebuild or while ticking items off; `hashCode` is not guaranteed stable | — Pending |
-| Pinned requests stay on top in random mode | User decision | — Pending |
-| Dart sorts; Kotlin only displays | Avoids duplicating sort logic in two languages | — Pending |
-| Widget taps queue natively and are consumed on app resume | Works offline without running Dart in the background | — Pending |
-| `logPrayed` gains an optional time parameter | Keeps the real tap time | — Pending |
-| Fix duplicate-log replay in this work | Widget marking depends on that path | — Pending |
+| One sort setting shared by app and widget, default random | User asked for both to behave the same | Implemented (quick 261102-wr9) |
+| Random seeded by day + request id, using a small stable hash | Prevents reshuffling on rebuild or while ticking items off; `hashCode` is not guaranteed stable | Implemented (quick 261102-wr9) |
+| Pinned requests stay on top in random mode | User decision | Implemented (quick 261102-wr9) |
+| Dart sorts; Kotlin only displays | Avoids duplicating sort logic in two languages | Implemented (quick 261102-wr9) |
+| Widget taps queue natively and are consumed on cold load and resume | Works offline without running Dart in the background | Implemented (quick 261102-wr9) |
+| Prayer events preserve the original time and stable key | Keeps the real tap time | Implemented (quick 261102-wr9) |
+| Fix duplicate-log replay in this work | Widget marking depends on that path | Implemented (quick 261102-wr9) |
 
 ## Evolution
 

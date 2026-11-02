@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Build
 import android.view.View
 import android.widget.RemoteViews
 import org.json.JSONArray
@@ -44,8 +45,16 @@ class IntercedeWidgetProvider : AppWidgetProvider() {
     companion object {
         private const val ACTION_TOGGLE = "com.aio.aio.INTERCEDE_TOGGLE"
         private const val ACTION_MIDNIGHT = "com.aio.aio.INTERCEDE_MIDNIGHT"
-        private val rows = intArrayOf(R.id.intercede_row_1, R.id.intercede_row_2,
-            R.id.intercede_row_3, R.id.intercede_row_4, R.id.intercede_row_5)
+
+        fun showPrayed(context: Context, id: Int) = prefs(context).getBoolean("showPrayed.$id", false)
+
+        fun displayItems(context: Context, done: Boolean): List<JSONObject> {
+            val items = snapshot(context) ?: return emptyList()
+            val taps = queue(context)
+            val now = System.currentTimeMillis()
+            return (0 until items.length()).mapNotNull { items.optJSONObject(it) }
+                .filter { sameDay(lastFor(it, taps), now) == done }
+        }
 
         private fun prefs(context: Context) =
             context.getSharedPreferences("intercede_widget", Context.MODE_PRIVATE)
@@ -112,11 +121,6 @@ class IntercedeWidgetProvider : AppWidgetProvider() {
             return saved
         }
 
-        private fun mark(context: Context, id: String): PendingIntent = PendingIntent.getActivity(
-            context, 0, Intent(context, IntercedeConfirmActivity::class.java)
-                .setData(Uri.fromParts("intercede", id, null)),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-
         private fun alarm(context: Context): PendingIntent = PendingIntent.getBroadcast(
             context, 0, Intent(context, IntercedeWidgetProvider::class.java).setAction(ACTION_MIDNIGHT),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
@@ -162,22 +166,31 @@ class IntercedeWidgetProvider : AppWidgetProvider() {
                     views.setTextViewText(R.id.intercede_message, if (display.isEmpty()) "لسه متصلاش لأي طلب النهاردة" else "")
                     views.setViewVisibility(R.id.intercede_message, if (display.isEmpty()) View.VISIBLE else View.GONE)
                 }
-                val height = manager.getAppWidgetOptions(id)
-                    .getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 360)
-                val visibleCount = ((height - 112) / 48).coerceIn(1, 5)
-                for ((index, rowId) in rows.withIndex()) {
-                    val item = display.getOrNull(index)
-                    val visible = item != null && index < visibleCount
-                    views.setViewVisibility(rowId, if (visible) View.VISIBLE else View.GONE)
-                    if (visible && item != null) {
-                        val title = item.optString("t")
-                        val entity = item.optString("e")
-                        views.setTextViewText(rowId, "${if (showPrayed) "✓" else "☐"}  $title — $entity")
-                        views.setContentDescription(rowId, "${if (showPrayed) "تم الصلاة" else "تأكيد الصلاة"}: $title، $entity")
-                        views.setOnClickPendingIntent(rowId, if (showPrayed) null else mark(context, item.optString("id")))
+                // A collection template must be mutable for per-row fill-in data;
+                // the component stays explicit and the activity revalidates the ID.
+                val mutable = if (Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0
+                val template = PendingIntent.getActivity(context, id,
+                    Intent(context, IntercedeConfirmActivity::class.java),
+                    PendingIntent.FLAG_UPDATE_CURRENT or mutable)
+                views.setPendingIntentTemplate(R.id.intercede_list, template)
+                if (Build.VERSION.SDK_INT >= 31) {
+                    val collection = RemoteViews.RemoteCollectionItems.Builder()
+                        .setHasStableIds(false).setViewTypeCount(1)
+                    display.forEachIndexed { index, item ->
+                        collection.addItem(index.toLong(), prayerRow(context, id, item, showPrayed))
                     }
+                    views.setRemoteAdapter(R.id.intercede_list, collection.build())
+                } else {
+                    val adapter = Intent(context, IntercedeListService::class.java)
+                        .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id)
+                        .setData(Uri.parse("intercede-list://widget/$id"))
+                    views.setRemoteAdapter(R.id.intercede_list, adapter)
                 }
+                views.setViewVisibility(R.id.intercede_list, if (display.isEmpty()) View.GONE else View.VISIBLE)
                 manager.updateAppWidget(id, views)
+            }
+            if (Build.VERSION.SDK_INT < 31) {
+                manager.notifyAppWidgetViewDataChanged(ids, R.id.intercede_list)
             }
             val midnight = Calendar.getInstance().apply {
                 add(Calendar.DAY_OF_YEAR, 1)

@@ -4,6 +4,14 @@ All notable changes to **يومي** (Daily AIO).
 
 ## [Unreleased]
 
+## [1.1.3] — 2026-11-03
+
+### Added
+- Tap the verse widget to cycle through today's verse, spiritual blessing, name of God, and a random unmastered memorization verse (due cards first); a separate open button shows the selected item's complete text offline.
+
+### Changed
+- The intercession widget now scrolls through every current request, preserving confirmation and the prayed-today toggle.
+
 ## [1.1.2] — 2026-11-03
 
 ### Changed

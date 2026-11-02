@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app/app.dart';
+import 'features/memorize/data/widget_surfaces.dart';
 import 'core/background.dart';
 import 'core/notifications.dart';
 import 'core/settings.dart';
@@ -15,6 +16,7 @@ Future<void> main() async {
   // Not awaited: network shouldn't delay first frame.
   IntercedeStore.instance.load();
   refreshVerseSurfaces();
+  refreshMemorizeWidget();
   initDailyPrefetch();
   prefetchJftNow();
 }

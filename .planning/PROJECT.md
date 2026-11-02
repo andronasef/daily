@@ -19,7 +19,7 @@ Intercession requests come to the user from the home screen, in a random order t
 
 ### Active
 
-- [x] User can add a تشفع home-screen widget showing a prayed/total count and up to 5 un-prayed requests
+- [x] User can add a تشفع home-screen widget showing a prayed/total count and a scrollable list of all un-prayed requests
 - [x] User can tap a request on the widget to mark it prayed, without opening the app and while offline
 - [x] Widget taps are logged with the time of the tap, not the time the app is next opened
 - [x] Widget's prayed-today state resets after midnight without opening the app
@@ -33,7 +33,6 @@ Intercession requests come to the user from the home screen, in a random order t
 ### Out of Scope
 
 - iOS widget — the repo has no `ios/` target
-- Scrollable widget list (`RemoteViewsService`) — five fixed rows are enough for now
 - Reshuffling in Kotlin at midnight — would duplicate the sort logic in two languages; the widget takes the new order when the app next opens
 
 ## Validation

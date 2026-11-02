@@ -198,3 +198,39 @@ Future<DailyContent> loadDailyContent() async {
     blessing: bl == null ? null : _parseNamed(bl),
   );
 }
+
+/// Same daily picks as the screen, precomputed once for every buffered UTC day.
+/// One unavailable category must not prevent the other two reaching the widget.
+Future<Map<String, DailyContent>> dailyWidgetContentFor(
+  Iterable<DateTime> dates,
+) async {
+  final results = await Future.wait([
+    for (final type in ['verse', 'godName', 'heavenlyBlessing'])
+      _fetchType(type).catchError((Object _) => <Map<String, dynamic>>[]),
+  ]);
+  for (final list in results) {
+    list.sort(_compare);
+  }
+  final person = Settings.instance.personKey;
+  Map<String, dynamic>? select(int type, String key, String day) {
+    final list = results[type];
+    return list.isEmpty ? null : list[pickIndex(day, person, key, list.length)];
+  }
+
+  return {
+    for (final date in dates)
+      getPeriodKey('daily', date): (() {
+        final day = getPeriodKey('daily', date);
+        final verse = select(0, 'verse', day);
+        final name = select(1, 'godName', day);
+        final blessing = select(2, 'blessing', day);
+        return DailyContent(
+          dailyVerse: verse == null ? null : _parseVerse(verse),
+          weeklyVerse: null,
+          monthlyVerse: null,
+          godName: name == null ? null : _parseNamed(name),
+          blessing: blessing == null ? null : _parseNamed(blessing),
+        );
+      })(),
+  };
+}

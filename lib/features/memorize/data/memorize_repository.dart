@@ -9,6 +9,7 @@ import '../domain/anki_engine.dart';
 import 'audio_service.dart';
 import 'memorize_db.dart';
 import 'memorize_models.dart';
+import 'widget_surfaces.dart';
 
 /// Offline-first repository for Memorization with Sanity as the single source of truth.
 /// Follows the same outbox-pattern as `IntercedeStore` and `leyaana`.
@@ -135,7 +136,8 @@ class MemorizeRepository {
           localVoicePath: existing?.localVoicePath,
           recordings: existing?.recordings ?? const [],
           source: 'sanity',
-          createdAt: DateTime.tryParse(doc['_createdAt']?.toString() ?? '') ??
+          createdAt:
+              DateTime.tryParse(doc['_createdAt']?.toString() ?? '') ??
               (existing?.createdAt ?? DateTime.now()),
           state: existing != null
               ? (serverMastered ? SrsState.mastered : existing.state)
@@ -156,8 +158,10 @@ class MemorizeRepository {
       // Check if local verses were deleted on Sanity (and not pending in outbox)
       final serverIds = docs.map((d) => d['_id']?.toString()).toSet();
       final pendingCreates = outbox
-          .where((m) =>
-              m.containsKey('create') || m.containsKey('createIfNotExists'))
+          .where(
+            (m) =>
+                m.containsKey('create') || m.containsKey('createIfNotExists'),
+          )
           .map((m) {
             final doc = (m['createIfNotExists'] ?? m['create']) as Map?;
             return doc?['_id']?.toString();
@@ -174,10 +178,12 @@ class MemorizeRepository {
         }
       }
 
+      unawaited(refreshMemorizeWidget());
       return await db.getAll();
     } catch (e) {
       debugPrint('Error refreshing memorize verses from Sanity: $e');
       final db = await MemorizeDb.open();
+      unawaited(refreshMemorizeWidget());
       return await db.getAll();
     }
   }
@@ -186,6 +192,7 @@ class MemorizeRepository {
   Future<void> addVerse(MemorizeVerse verse) async {
     final db = await MemorizeDb.open();
     await db.upsert(verse);
+    unawaited(refreshMemorizeWidget());
 
     // Queue in Sanity outbox
     final docId = verse.id.replaceAll(RegExp(r'[^a-zA-Z0-9_\-\.]'), '_');
@@ -197,10 +204,8 @@ class MemorizeRepository {
         'verse': verse.verse,
         if (verse.category != null && verse.category!.isNotEmpty)
           'category': verse.category,
-        if (verse.translation.isNotEmpty)
-          'translation': verse.translation,
-        if (verse.state == SrsState.mastered)
-          'isMastered': true,
+        if (verse.translation.isNotEmpty) 'translation': verse.translation,
+        if (verse.state == SrsState.mastered) 'isMastered': true,
       },
     };
 
@@ -218,6 +223,7 @@ class MemorizeRepository {
     );
     final db = await MemorizeDb.open();
     await db.upsert(updated);
+    unawaited(refreshMemorizeWidget());
     return updated;
   }
 
@@ -233,6 +239,7 @@ class MemorizeRepository {
           : DateTime.now(),
     );
     await db.upsert(updated);
+    unawaited(refreshMemorizeWidget());
 
     // Queue patch in Sanity outbox
     final docId = verse.id.replaceAll(RegExp(r'[^a-zA-Z0-9_\-\.]'), '_');
@@ -270,6 +277,7 @@ class MemorizeRepository {
     }
 
     await db.delete(verseId);
+    unawaited(refreshMemorizeWidget());
 
     // Queue delete mutation in Sanity
     final docId = verseId.replaceAll(RegExp(r'[^a-zA-Z0-9_\-\.]'), '_');
@@ -333,19 +341,14 @@ class MemorizeRepository {
       final docId = verse.id.replaceAll(RegExp(r'[^a-zA-Z0-9_\-\.]'), '_');
       final assetRef = {
         '_type': 'file',
-        'asset': {
-          '_type': 'reference',
-          '_ref': assetId,
-        },
+        'asset': {'_type': 'reference', '_ref': assetId},
       };
 
       await sanityMutate([
         {
           'patch': {
             'id': docId,
-            'set': {
-              'audioFile': assetRef,
-            },
+            'set': {'audioFile': assetRef},
           },
         },
       ]);

@@ -61,6 +61,9 @@
                 android:resource="@xml/verse_widget_info"/>
         </receiver>
 
+        <service android:name=".IntercedeListService" android:exported="false"
+            android:permission="android.permission.BIND_REMOTEVIEWS" />
+
         <receiver android:name=".IntercedeWidgetProvider" android:exported="false" android:label="تشفع اليوم">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>

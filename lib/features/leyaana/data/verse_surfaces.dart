@@ -16,17 +16,25 @@ const _widgetChannel = MethodChannel('aio/widget');
 Future<void> refreshVerseSurfaces() async {
   try {
     final now = DateTime.now();
-    final byDay = await dailyVersesFor([
+    final content = await dailyWidgetContentFor([
       for (var i = 0; i <= Notifications.verseDays; i++)
         now.add(Duration(days: i)),
     ]);
-    if (byDay.isEmpty) return;
+    if (content.values.every(
+      (c) => c.dailyVerse == null && c.blessing == null && c.godName == null,
+    )) {
+      return;
+    }
+    final byDay = {
+      for (final e in content.entries)
+        if (e.value.dailyVerse != null) e.key: e.value.dailyVerse!,
+    };
 
     await Settings.instance.setCache(
       'verse-widget',
       jsonEncode({
-        for (final e in byDay.entries)
-          e.key: {'t': e.value.title ?? 'آية اليوم', 'v': e.value.verse},
+        for (final e in content.entries)
+          e.key: {'items': verseWidgetItems(e.value)},
       }),
     );
     try {
@@ -35,10 +43,42 @@ Future<void> refreshVerseSurfaces() async {
       // iOS: no widget.
     }
 
-    if (Settings.instance.verseNotifEnabled) {
+    if (Settings.instance.verseNotifEnabled && byDay.isNotEmpty) {
       await Notifications.scheduleVerses(byDay);
     }
   } catch (_) {
     // Offline with no cache yet: keep whatever was scheduled last time.
   }
+}
+
+/// Display order is shared with the native tap-cycle. Keep full details separate
+/// from the compact widget preview so opening it never loses the explanation.
+List<Map<String, String>> verseWidgetItems(DailyContent content) {
+  Map<String, String> named(String kind, String label, NamedContent? item) {
+    final details = [
+      if (item?.mean?.isNotEmpty == true) item!.mean!,
+      if (item?.content?.isNotEmpty == true) item!.content!,
+    ];
+    final full = details.isEmpty
+        ? (item?.name ?? 'افتح التطبيق لتحميل المحتوى')
+        : details.join('\n\n');
+    return {
+      'kind': kind,
+      't': item == null ? label : '$label · ${item.name}',
+      'v': details.isEmpty ? full : details.first,
+      'full': full,
+    };
+  }
+
+  final verse = content.dailyVerse;
+  return [
+    {
+      'kind': 'verse',
+      't': verse?.title ?? 'آية اليوم',
+      'v': verse?.verse ?? 'افتح التطبيق لتحميل آية اليوم',
+      'full': verse?.verse ?? 'افتح التطبيق لتحميل آية اليوم',
+    },
+    named('blessing', 'البركة الروحية', content.blessing),
+    named('godName', 'اسم الله', content.godName),
+  ];
 }

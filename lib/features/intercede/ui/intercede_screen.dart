@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../../core/settings.dart';
 import '../data/models.dart';
 import '../data/repository.dart';
 import '../data/store.dart';
@@ -24,6 +25,7 @@ class IntercedeScreen extends StatefulWidget {
 class _IntercedeScreenState extends State<IntercedeScreen>
     with SingleTickerProviderStateMixin {
   final _store = IntercedeStore.instance;
+  PrayerSort get _sort => PrayerSort.fromName(Settings.instance.intercedeSort);
 
   /// Listened to so the FAB can mean "add prayer" or "add person" depending on
   /// which tab you are looking at.
@@ -51,6 +53,23 @@ class _IntercedeScreenState extends State<IntercedeScreen>
       appBar: AppBar(
         title: const Text('تشفع'),
         actions: [
+          PopupMenuButton<PrayerSort>(
+            tooltip: 'ترتيب حسب',
+            icon: const Icon(Icons.sort),
+            initialValue: _sort,
+            onSelected: (sort) async {
+              await Settings.instance.setIntercedeSort(sort.name);
+              if (mounted) setState(() {});
+            },
+            itemBuilder: (_) => [
+              for (final sort in PrayerSort.values)
+                CheckedPopupMenuItem(
+                  value: sort,
+                  checked: sort == _sort,
+                  child: Text(sort.label),
+                ),
+            ],
+          ),
           IconButton(
             tooltip: 'بحث',
             icon: const Icon(Icons.search),
@@ -58,7 +77,7 @@ class _IntercedeScreenState extends State<IntercedeScreen>
               final entities = _store.entities.value ?? const <Entity>[];
               await showSearch(
                 context: context,
-                delegate: _PrayerSearch(openPrayers(entities)),
+                delegate: _PrayerSearch(openPrayers(entities, sort: _sort)),
               );
               _reload();
             },
@@ -126,7 +145,7 @@ class _IntercedeScreenState extends State<IntercedeScreen>
 
   Widget _prayersTab(List<Entity> entities) {
     final theme = Theme.of(context);
-    final items = openPrayers(entities);
+    final items = openPrayers(entities, sort: _sort);
     if (items.isEmpty) {
       return _refreshable(
         child: _hint(
@@ -137,8 +156,7 @@ class _IntercedeScreenState extends State<IntercedeScreen>
       );
     }
     // Pinned prayers are today's list; with none pinned, everything counts.
-    final hasPinned = items.any((i) => i.prayer.pinned);
-    final counted = hasPinned ? items.where((i) => i.prayer.pinned) : items;
+    final counted = countedPrayers(items);
     final left = counted.where((i) => !i.prayer.prayedToday).length;
     return _refreshable(
       child: ListView.separated(

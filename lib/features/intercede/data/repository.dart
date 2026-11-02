@@ -17,7 +17,7 @@ bool get intercedeCanEdit => sanityCanWrite;
 const _query = '''
 *[_type == "intercedeEntity"]{_id, name, note, createdAt, _createdAt,
   "prayers": *[_type == "intercedePrayer" && entity._ref == ^._id]
-    {_id, title, startedAt, completedAt, outcome, pinned, logs}}
+    {_id, title, startedAt, _createdAt, completedAt, outcome, pinned, logs}}
 ''';
 
 DateTime? _parseDate(dynamic v) =>
@@ -44,7 +44,7 @@ List<PrayerLog> _parseLogs(dynamic raw) {
 Prayer _parsePrayer(Map<String, dynamic> m) => Prayer(
   id: m['_id'] as String,
   title: (m['title'] ?? '').toString(),
-  startedAt: _parseDate(m['startedAt']),
+  startedAt: _parseDate(m['startedAt'] ?? m['_createdAt']),
   completedAt: _parseDate(m['completedAt']),
   outcome: m['outcome']?.toString(),
   pinned: m['pinned'] == true,

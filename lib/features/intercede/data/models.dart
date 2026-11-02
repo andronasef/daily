@@ -1,3 +1,5 @@
+import '../../../core/format/arabic.dart';
+
 export '../../../core/format/dates.dart';
 
 class PrayerLog {
@@ -29,10 +31,16 @@ class Prayer {
 
   /// Already prayed at some point today — drives the daily checklist.
   bool get prayedToday {
-    final l = lastPrayedAt;
-    if (l == null) return false;
-    final now = DateTime.now();
-    return l.year == now.year && l.month == now.month && l.day == now.day;
+    return prayedOn(DateTime.now());
+  }
+
+  bool prayedOn(DateTime now) {
+    final last = lastPrayedAt?.toLocal();
+    final day = now.toLocal();
+    return last != null &&
+        last.year == day.year &&
+        last.month == day.month &&
+        last.day == day.day;
   }
 
   DateTime? get lastPrayedAt => logs.isEmpty
@@ -92,29 +100,79 @@ class EntityPrayer {
   final Prayer prayer;
 }
 
-/// Every active prayer: pinned first, then not-yet-prayed-today (most neglected
-/// at the very top), then today's done ones newest-first so the list empties as you go.
-List<EntityPrayer> openPrayers(List<Entity> entities) {
-  final pending = <EntityPrayer>[];
-  final done = <EntityPrayer>[];
-  for (final e in entities) {
-    for (final p in e.prayers) {
-      if (p.isDone) continue;
-      (p.prayedToday ? done : pending).add(EntityPrayer(e, p));
-    }
+enum PrayerSort {
+  random('عشوائي'),
+  neglected('الأكتر إهمالاً'),
+  oldest('الأقدم إضافة'),
+  newest('الأحدث إضافة'),
+  alphabetical('أبجدي');
+
+  const PrayerSort(this.label);
+  final String label;
+  static PrayerSort fromName(String? value) =>
+      values.firstWhere((s) => s.name == value, orElse: () => random);
+}
+
+/// Stable across rebuilds, input order and process restarts; local day first.
+int _dailyRank(String id, DateTime day) {
+  var hash = 0x811c9dc5;
+  for (final c in '${day.year}-${day.month}-${day.day}:$id'.codeUnits) {
+    hash = ((hash ^ c) * 0x01000193) & 0xffffffff;
   }
-  pending.sort((a, b) {
-    if (a.prayer.pinned != b.prayer.pinned) return a.prayer.pinned ? -1 : 1;
-    final al = a.prayer.lastPrayedAt, bl = b.prayer.lastPrayedAt;
-    if (al == null && bl == null) {
-      return a.prayer.title.compareTo(b.prayer.title);
+  return hash;
+}
+
+List<EntityPrayer> countedPrayers(List<EntityPrayer> items) =>
+    items.any((i) => i.prayer.pinned)
+    ? items.where((i) => i.prayer.pinned).toList()
+    : items;
+
+List<EntityPrayer> openPrayers(
+  List<Entity> entities, {
+  PrayerSort sort = PrayerSort.random,
+  DateTime? now,
+}) {
+  final day = (now ?? DateTime.now()).toLocal();
+  final items = [
+    for (final e in entities)
+      for (final p in e.prayers)
+        if (!p.isDone) EntityPrayer(e, p),
+  ];
+  int dates(DateTime? a, DateTime? b, {bool descending = false}) {
+    if (a == null) return b == null ? 0 : 1;
+    if (b == null) return -1;
+    return descending ? b.compareTo(a) : a.compareTo(b);
+  }
+
+  items.sort((a, b) {
+    final ap = a.prayer, bp = b.prayer;
+    final ad = ap.prayedOn(day), bd = bp.prayedOn(day);
+    if (ad != bd) return ad ? 1 : -1;
+    if (ad) {
+      final result = bp.lastPrayedAt!.compareTo(ap.lastPrayedAt!);
+      return result != 0 ? result : ap.id.compareTo(bp.id);
     }
-    if (al == null) return -1; // never prayed = most neglected
-    if (bl == null) return 1;
-    return al.compareTo(bl);
+    if (ap.pinned != bp.pinned) return ap.pinned ? -1 : 1;
+    final result = switch (sort) {
+      PrayerSort.random => _dailyRank(
+        ap.id,
+        day,
+      ).compareTo(_dailyRank(bp.id, day)),
+      PrayerSort.neglected =>
+        ap.lastPrayedAt == null
+            ? (bp.lastPrayedAt == null ? 0 : -1)
+            : bp.lastPrayedAt == null
+            ? 1
+            : ap.lastPrayedAt!.compareTo(bp.lastPrayedAt!),
+      PrayerSort.oldest => dates(ap.startedAt, bp.startedAt),
+      PrayerSort.newest => dates(ap.startedAt, bp.startedAt, descending: true),
+      PrayerSort.alphabetical => normalizeArabic(
+        ap.title,
+      ).compareTo(normalizeArabic(bp.title)),
+    };
+    return result != 0 ? result : ap.id.compareTo(bp.id);
   });
-  done.sort((a, b) => b.prayer.lastPrayedAt!.compareTo(a.prayer.lastPrayedAt!));
-  return [...pending, ...done];
+  return items;
 }
 
 /// Every completed prayer across all entities, most recently answered first.

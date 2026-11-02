@@ -156,26 +156,40 @@ Future<void> deletePrayer(String id) => IntercedeStore.instance.apply([
   },
 ]);
 
-Future<void> logPrayed(List<String> prayerIds, {String? note}) =>
-    IntercedeStore.instance.apply([
-      for (final id in prayerIds)
-        {
-          'patch': {
-            'id': id,
-            'setIfMissing': {'logs': []},
-            'insert': {
-              'after': 'logs[-1]',
-              'items': [
-                {
-                  '_key': _key(),
-                  '_type': 'prayerLog',
-                  'prayedAt': _nowUtc(),
-                  if (note != null && note.isNotEmpty) 'note': note,
-                },
-              ],
-            },
+/// One stable event identity makes retrying the outbox safe on Sanity too.
+Map<String, dynamic> prayerLogMutation(
+  String id, {
+  String? note,
+  DateTime? at,
+  String? key,
+}) {
+  final eventKey = key ?? _key();
+  if (!RegExp(r'^[a-z0-9]{1,64}$').hasMatch(eventKey)) {
+    throw ArgumentError.value(eventKey, 'key', 'Invalid event key');
+  }
+  return {
+    'patch': {
+      'id': id,
+      'setIfMissing': {'logs': []},
+      'unset': ['logs[_key=="$eventKey"]'],
+      'insert': {
+        'after': 'logs[-1]',
+        'items': [
+          {
+            '_key': eventKey,
+            '_type': 'prayerLog',
+            'prayedAt': (at ?? DateTime.now()).toUtc().toIso8601String(),
+            if (note != null && note.isNotEmpty) 'note': note,
           },
-        },
+        ],
+      },
+    },
+  };
+}
+
+Future<void> logPrayed(List<String> prayerIds, {String? note, DateTime? at}) =>
+    IntercedeStore.instance.apply([
+      for (final id in prayerIds) prayerLogMutation(id, note: note, at: at),
     ]);
 
 Future<void> completePrayer(String id, {String? outcome}) =>

@@ -194,9 +194,15 @@ void _applyPatch(List<Map<String, dynamic>> json, Map<String, dynamic> patch) {
   if (insert != null) {
     final field = (insert['after'] ?? '').toString().split('[').first;
     final current = doc[field];
-    doc[field] = [
-      if (current is List) ...current,
-      ...(insert['items'] as List? ?? const []),
-    ];
+    final items = <dynamic>[if (current is List) ...current];
+    final keys = {
+      for (final item in items)
+        if (item is Map && item['_key'] != null) item['_key'],
+    };
+    for (final item in insert['items'] as List? ?? const []) {
+      final key = item is Map ? item['_key'] : null;
+      if (key == null || keys.add(key)) items.add(item);
+    }
+    doc[field] = items;
   }
 }

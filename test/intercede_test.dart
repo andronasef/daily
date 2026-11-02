@@ -70,6 +70,88 @@ void main() {
   });
 
   group('openPrayers', () {
+    test('all modes keep pending pins first and prayed pins last', () {
+      final day = DateTime(2026, 11, 2, 12);
+      final data = [
+        Entity(
+          id: 'e',
+          name: 'اسم',
+          prayers: [
+            Prayer(id: 'normal', title: 'ألف'),
+            Prayer(id: 'pin', title: 'ياء', pinned: true),
+            Prayer(
+              id: 'done',
+              title: 'باء',
+              pinned: true,
+              logs: [PrayerLog(prayedAt: day)],
+            ),
+            Prayer(id: 'archive', title: 'قديم', completedAt: day),
+          ],
+        ),
+      ];
+      for (final mode in PrayerSort.values) {
+        expect(
+          openPrayers(data, sort: mode, now: day).map((i) => i.prayer.id),
+          ['pin', 'normal', 'done'],
+        );
+      }
+    });
+    test('random is stable within a day and changes across days', () {
+      final prayers = List.generate(
+        30,
+        (i) => Prayer(id: 'intercedePrayer.${i * 7919}abcdefgh', title: '$i'),
+      );
+      List<String> order(List<Prayer> values, int day) => openPrayers([
+        Entity(id: 'e', name: 'اسم', prayers: values),
+      ], now: DateTime(2026, 11, day)).map((i) => i.prayer.id).toList();
+      expect(order(prayers, 2), order(prayers.reversed.toList(), 2));
+      expect(order(prayers, 2).take(5), isNot(order(prayers, 3).take(5)));
+      expect(PrayerSort.fromName('invalid'), PrayerSort.random);
+    });
+    test('date modes put missing dates last and alphabetical folds Arabic', () {
+      final data = [
+        Entity(
+          id: 'e',
+          name: 'اسم',
+          prayers: [
+            Prayer(id: 'a', title: 'إيمان', startedAt: DateTime(2020)),
+            Prayer(id: 'b', title: 'ايمان', startedAt: DateTime(2025)),
+            Prayer(id: 'c', title: 'باء'),
+          ],
+        ),
+      ];
+      expect(
+        openPrayers(data, sort: PrayerSort.oldest).map((i) => i.prayer.id),
+        ['a', 'b', 'c'],
+      );
+      expect(
+        openPrayers(data, sort: PrayerSort.newest).map((i) => i.prayer.id),
+        ['b', 'a', 'c'],
+      );
+      expect(
+        openPrayers(
+          data,
+          sort: PrayerSort.alphabetical,
+        ).map((i) => i.prayer.id),
+        ['a', 'b', 'c'],
+      );
+    });
+    test('default ordering is shuffled rather than alphabetical', () {
+      final prayers = List.generate(
+        30,
+        (i) => Prayer(
+          id: 'intercedePrayer.${i.toString().padLeft(12, '0')}',
+          title: i.toString().padLeft(2, '0'),
+        ),
+      );
+      final result = openPrayers([
+        Entity(id: 'e', name: 'اسم', prayers: prayers),
+      ]);
+      expect(
+        result.map((i) => i.prayer.id).toList(),
+        isNot(prayers.map((p) => p.id).toList()),
+      );
+    });
     test('today\'s done ones sink below the ones still pending', () {
       final now = DateTime.now();
       final entities = [
@@ -107,11 +189,13 @@ void main() {
       ];
 
       // never-prayed, then the stalest, then today's — and nothing completed.
-      expect(openPrayers(entities).map((i) => i.prayer.id).toList(), [
-        'never',
-        'stale',
-        'done-today',
-      ]);
+      expect(
+        openPrayers(
+          entities,
+          sort: PrayerSort.neglected,
+        ).map((i) => i.prayer.id).toList(),
+        ['never', 'stale', 'done-today'],
+      );
       expect(answeredPrayers(entities).map((i) => i.prayer.id).toList(), [
         'completed',
       ]);

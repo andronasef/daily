@@ -68,8 +68,18 @@ class Settings {
   /// Gemini API key for the لليوم فقط translation. Entered in Settings.
   String get geminiKey => _prefs.getString('geminiKey') ?? '';
   set geminiKey(String v) => _prefs.setString('geminiKey', v.trim());
+  String get intercedeSort => _prefs.getString('intercedeSort') ?? 'random';
+  Future<void> setIntercedeSort(String value) async {
+    if (!await _prefs.setString('intercedeSort', value)) {
+      throw StateError('Could not save prayer sort');
+    }
+  }
+
   // Generic string cache (used by sections 2 & 3 for offline/per-day data).
   String? getCache(String key) => _prefs.getString(key);
-  Future<void> setCache(String key, String value) =>
-      _prefs.setString(key, value);
+  Future<void> setCache(String key, String value) async {
+    if (!await _prefs.setString(key, value)) {
+      throw StateError('Could not save $key');
+    }
+  }
 }

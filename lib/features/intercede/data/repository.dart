@@ -17,7 +17,7 @@ bool get intercedeCanEdit => sanityCanWrite;
 const _query = '''
 *[_type == "intercedeEntity"]{_id, name, note, createdAt, _createdAt,
   "prayers": *[_type == "intercedePrayer" && entity._ref == ^._id]
-    {_id, title, startedAt, completedAt, outcome, pinned, logs}}
+    {_id, title, startedAt, _createdAt, completedAt, outcome, pinned, logs}}
 ''';
 
 DateTime? _parseDate(dynamic v) =>
@@ -44,7 +44,7 @@ List<PrayerLog> _parseLogs(dynamic raw) {
 Prayer _parsePrayer(Map<String, dynamic> m) => Prayer(
   id: m['_id'] as String,
   title: (m['title'] ?? '').toString(),
-  startedAt: _parseDate(m['startedAt']),
+  startedAt: _parseDate(m['startedAt'] ?? m['_createdAt']),
   completedAt: _parseDate(m['completedAt']),
   outcome: m['outcome']?.toString(),
   pinned: m['pinned'] == true,
@@ -156,26 +156,40 @@ Future<void> deletePrayer(String id) => IntercedeStore.instance.apply([
   },
 ]);
 
-Future<void> logPrayed(List<String> prayerIds, {String? note}) =>
-    IntercedeStore.instance.apply([
-      for (final id in prayerIds)
-        {
-          'patch': {
-            'id': id,
-            'setIfMissing': {'logs': []},
-            'insert': {
-              'after': 'logs[-1]',
-              'items': [
-                {
-                  '_key': _key(),
-                  '_type': 'prayerLog',
-                  'prayedAt': _nowUtc(),
-                  if (note != null && note.isNotEmpty) 'note': note,
-                },
-              ],
-            },
+/// One stable event identity makes retrying the outbox safe on Sanity too.
+Map<String, dynamic> prayerLogMutation(
+  String id, {
+  String? note,
+  DateTime? at,
+  String? key,
+}) {
+  final eventKey = key ?? _key();
+  if (!RegExp(r'^[a-z0-9]{1,64}$').hasMatch(eventKey)) {
+    throw ArgumentError.value(eventKey, 'key', 'Invalid event key');
+  }
+  return {
+    'patch': {
+      'id': id,
+      'setIfMissing': {'logs': []},
+      'unset': ['logs[_key=="$eventKey"]'],
+      'insert': {
+        'after': 'logs[-1]',
+        'items': [
+          {
+            '_key': eventKey,
+            '_type': 'prayerLog',
+            'prayedAt': (at ?? DateTime.now()).toUtc().toIso8601String(),
+            if (note != null && note.isNotEmpty) 'note': note,
           },
-        },
+        ],
+      },
+    },
+  };
+}
+
+Future<void> logPrayed(List<String> prayerIds, {String? note, DateTime? at}) =>
+    IntercedeStore.instance.apply([
+      for (final id in prayerIds) prayerLogMutation(id, note: note, at: at),
     ]);
 
 Future<void> completePrayer(String id, {String? outcome}) =>

@@ -37,7 +37,7 @@ class AioAppState extends State<AioApp> with WidgetsBindingObserver {
   /// Coming back to the app is the cheapest moment to drain the تشفع outbox.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) IntercedeStore.instance.flush();
+    if (state == AppLifecycleState.resumed) IntercedeStore.instance.onResume();
   }
 
   void setDark(bool v) {

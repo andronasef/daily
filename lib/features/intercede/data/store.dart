@@ -7,6 +7,7 @@ import '../../../core/sanity/client.dart';
 import '../../../core/settings.dart';
 import 'models.dart';
 import 'repository.dart';
+import 'widget_bridge.dart';
 
 const _cacheKey = 'intercede:entities';
 const _outboxKey = 'intercede:outbox';
@@ -20,6 +21,30 @@ const _outboxKey = 'intercede:outbox';
 /// [applyMutation] only understands the operations this app emits.
 class IntercedeStore {
   IntercedeStore._();
+  @visibleForTesting
+  IntercedeStore.forTesting({
+    required this.readCache,
+    required this.writeCache,
+    required this.fetch,
+    required this.send,
+    required this.canWrite,
+    required IntercedeWidgetBridge bridge,
+  }) : _bridge = bridge;
+
+  String? Function(String)? readCache;
+  Future<void> Function(String, String)? writeCache;
+  Future<List<Map<String, dynamic>>> Function()? fetch;
+  Future<void> Function(List<Map<String, dynamic>>)? send;
+  bool Function()? canWrite;
+  IntercedeWidgetBridge _bridge = IntercedeWidgetBridge();
+  Future<void> _saving = Future.value();
+  Future<void>? _consuming;
+  bool _hasData = false;
+  bool _authoritative = false;
+
+  String? _read(String key) => (readCache ?? Settings.instance.getCache)(key);
+  Future<void> _write(String key, String value) =>
+      (writeCache ?? Settings.instance.setCache)(key, value);
   static final instance = IntercedeStore._();
 
   /// null until the first load finishes; empty list is a legitimate value.
@@ -36,9 +61,16 @@ class IntercedeStore {
 
   /// Reads both caches, paints them, then refreshes in the background.
   Future<void> load() async {
-    _json = _decode(Settings.instance.getCache(_cacheKey));
-    _outbox = _decode(Settings.instance.getCache(_outboxKey));
-    if (_json.isNotEmpty) _publish();
+    final cache = _read(_cacheKey);
+    _json = _decode(cache);
+    _hasData = cache != null && _validCache(cache);
+    _outbox = _decode(_read(_outboxKey));
+    for (final mutation in _outbox) {
+      applyMutation(_json, mutation);
+    }
+    _hasData = _hasData || _json.isNotEmpty;
+    await consumeWidgetTaps();
+    if (_hasData) _publish();
     await refresh();
   }
 
@@ -47,13 +79,16 @@ class IntercedeStore {
   Future<void> refresh() async {
     await flush();
     try {
-      final fresh = await fetchEntitiesRaw();
+      final fresh = await (fetch ?? fetchEntitiesRaw)();
       _json = fresh;
+      _hasData = true;
+      _authoritative = true;
       for (final m in _outbox) {
         applyMutation(_json, m);
       }
       failed.value = false;
       await _save();
+      await consumeWidgetTaps();
       _publish();
     } catch (_) {
       failed.value = _json.isEmpty;
@@ -68,6 +103,7 @@ class IntercedeStore {
       _outbox.add(m);
     }
     await _save();
+    _hasData = true;
     _publish();
     unawaited(flush());
   }
@@ -75,12 +111,14 @@ class IntercedeStore {
   /// Sends the outbox head-first, stopping at the first failure so ordering
   /// (create before patch) holds. Silent: failures stay queued.
   Future<void> flush() async {
-    if (_flushing || _outbox.isEmpty || !sanityCanWrite) return;
+    if (_flushing || _outbox.isEmpty || !(canWrite?.call() ?? sanityCanWrite)) {
+      return;
+    }
     _flushing = true;
     try {
       while (_outbox.isNotEmpty) {
         try {
-          await sanityMutate([_outbox.first]);
+          await (send ?? sanityMutate)([_outbox.first]);
         } catch (_) {
           break;
         }
@@ -96,12 +134,94 @@ class IntercedeStore {
 
   void _publish() {
     entities.value = parseEntities(_json);
+    if (_hasData || _json.isNotEmpty) unawaited(republish());
     if (_json.isNotEmpty) failed.value = false;
   }
 
-  Future<void> _save() async {
-    await Settings.instance.setCache(_cacheKey, jsonEncode(_json));
-    await Settings.instance.setCache(_outboxKey, jsonEncode(_outbox));
+  Future<void> republish() async {
+    try {
+      await _writeWidget();
+    } catch (_) {
+      // Widget failure must never roll back a locally saved prayer.
+    }
+  }
+
+  Future<void> _writeWidget() => _bridge.publish(
+    intercedeWidgetSnapshot(
+      parseEntities(_json),
+      sort: PrayerSort.fromName(Settings.instance.intercedeSort),
+    ),
+  );
+
+  Future<void> onResume() async {
+    await consumeWidgetTaps();
+    if (_hasData) {
+      _publish();
+      await republish();
+    }
+    await flush();
+  }
+
+  Future<void> consumeWidgetTaps() =>
+      _consuming ??= _consumeWidgetTaps().whenComplete(() => _consuming = null);
+
+  Future<void> _consumeWidgetTaps() async {
+    if (!_hasData) return;
+    try {
+      final taps = await _bridge.peek();
+      final ack = <String>[];
+      for (final tap in taps) {
+        final exists = _json.any(
+          (e) => _prayersOf(e).any((p) => p['_id'] == tap.prayerId),
+        );
+        if (!exists) {
+          if (_authoritative) ack.add(tap.key);
+          continue;
+        }
+        final alreadyQueued = _outbox.any((m) {
+          final insert = (m['patch'] as Map?)?['insert'] as Map?;
+          return (insert?['items'] as List? ?? []).any(
+            (item) => item is Map && item['_key'] == tap.key,
+          );
+        });
+        if (!alreadyQueued) {
+          final mutation = prayerLogMutation(
+            tap.prayerId,
+            at: tap.at,
+            key: tap.key,
+          );
+          applyMutation(_json, mutation);
+          _outbox.add(mutation);
+        }
+        ack.add(tap.key);
+      }
+      if (ack.isEmpty) return;
+      await _save();
+      _publish();
+      await _writeWidget();
+      await _bridge.ack(ack);
+    } catch (_) {
+      // No ack on save/channel failure; stable event keys make replay safe.
+    }
+  }
+
+  Future<void> _save() {
+    final outbox = jsonEncode(_outbox), entities = jsonEncode(_json);
+    final next = _saving.then((_) async {
+      // A crash between writes replays the durable outbox on the next load.
+      await _write(_outboxKey, outbox);
+      await _write(_cacheKey, entities);
+    });
+    _saving = next.catchError((Object _) {});
+    return next;
+  }
+
+  static bool _validCache(String raw) {
+    try {
+      return jsonDecode(raw) is List;
+    } catch (_) {
+      return false;
+    }
   }
 
   static List<Map<String, dynamic>> _decode(String? raw) {
@@ -194,9 +314,15 @@ void _applyPatch(List<Map<String, dynamic>> json, Map<String, dynamic> patch) {
   if (insert != null) {
     final field = (insert['after'] ?? '').toString().split('[').first;
     final current = doc[field];
-    doc[field] = [
-      if (current is List) ...current,
-      ...(insert['items'] as List? ?? const []),
-    ];
+    final items = <dynamic>[if (current is List) ...current];
+    final keys = {
+      for (final item in items)
+        if (item is Map && item['_key'] != null) item['_key'],
+    };
+    for (final item in insert['items'] as List? ?? const []) {
+      final key = item is Map ? item['_key'] : null;
+      if (key == null || keys.add(key)) items.add(item);
+    }
+    doc[field] = items;
   }
 }

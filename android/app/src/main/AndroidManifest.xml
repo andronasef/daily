@@ -58,6 +58,17 @@
                 android:resource="@xml/verse_widget_info"/>
         </receiver>
 
+        <receiver android:name=".IntercedeWidgetProvider" android:exported="false" android:label="تشفع اليوم">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+                <action android:name="android.intent.action.TIME_SET"/>
+                <action android:name="android.intent.action.TIMEZONE_CHANGED"/>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/intercede_widget_info"/>
+        </receiver>
+
         <!-- ota_update: in-app APK install -->
         <provider
             android:name="sk.fourq.otaupdate.OtaUpdateFileProvider"

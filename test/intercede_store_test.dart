@@ -17,6 +17,39 @@ Map<String, dynamic> prayer(List<Map<String, dynamic>> json) =>
     (json.first['prayers'] as List).first as Map<String, dynamic>;
 
 void main() {
+  test('replaying the same keyed log leaves one event', () {
+    final json = fixture();
+    final mutation = {
+      'patch': {
+        'id': 'p1',
+        'setIfMissing': {'logs': []},
+        'insert': {
+          'after': 'logs[-1]',
+          'items': [
+            {'_key': 'event1', 'prayedAt': '2026-11-02T00:00:00Z'},
+          ],
+        },
+      },
+    };
+    applyMutation(json, mutation);
+    applyMutation(json, mutation);
+    expect(prayer(json)['logs'], hasLength(1));
+  });
+  test('event builder retains UTC tap time and selector identity', () {
+    final at = DateTime.utc(2026, 11, 1, 23, 59);
+    final m = prayerLogMutation('p1', at: at, key: 'event1');
+    final patch = m['patch'] as Map;
+    expect(patch['unset'], ['logs[_key=="event1"]']);
+    final items = (patch['insert'] as Map)['items'] as List;
+    expect(items.single['prayedAt'], at.toIso8601String());
+    final json = fixture();
+    for (var i = 0; i < 3; i++) {
+      applyMutation(json, m);
+    }
+    applyMutation(json, prayerLogMutation('p1', at: at, key: 'event2'));
+    expect(prayer(json)['logs'], hasLength(2));
+    expect(() => prayerLogMutation('p1', key: '"bad'), throwsArgumentError);
+  });
   test('patch set pins a nested prayer', () {
     final json = fixture();
     applyMutation(json, {

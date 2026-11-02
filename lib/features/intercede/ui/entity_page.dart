@@ -174,7 +174,7 @@ class _EntityPageState extends State<EntityPage> {
   }
 
   Future<void> _logSingle(Prayer p) async {
-    final note = await askNote(context);
+    final note = await askNote(context, prayerTitle: p.title);
     if (note == null) return;
     try {
       await logPrayed([p.id], note: note.isEmpty ? null : note);

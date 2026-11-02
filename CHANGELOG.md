@@ -4,6 +4,13 @@ All notable changes to **يومي** (Daily AIO).
 
 ## [Unreleased]
 
+## [1.1.2] — 2026-11-03
+
+### Changed
+- Match the intercession widget to the verse widget’s blue background and automatically resize its text and rows with the widget.
+- Confirm prayer marking in the app and widget before saving; cancel leaves the request unchanged.
+- Expand today's prayed requests in the app, or toggle between pending and prayed requests in the widget.
+
 ## [1.1.1] — 2026-11-02
 
 ### Added

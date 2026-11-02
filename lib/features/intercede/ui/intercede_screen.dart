@@ -10,6 +10,7 @@ import 'answered_page.dart';
 import 'entity_page.dart';
 import 'prayer_page.dart';
 import 'widgets/prayer_card.dart';
+import 'widgets/prayer_checklist.dart';
 import 'widgets/prayer_editor_page.dart';
 import 'widgets/prayer_menu.dart';
 
@@ -160,25 +161,17 @@ class _IntercedeScreenState extends State<IntercedeScreen>
     final counted = countedPrayers(items);
     final left = counted.where((i) => !i.prayer.prayedToday).length;
     return _refreshable(
-      child: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: items.length + 1,
-        separatorBuilder: (_, _) => const SizedBox(height: 10),
-        itemBuilder: (context, i) {
-          if (i == 0) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Text(
-                left == 0
-                    ? 'خلصت كل صلوات النهاردة ✓'
-                    : 'فاضل $left من ${counted.length}',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            );
-          }
-          final it = items[i - 1];
+      child: PrayerChecklist(
+        items: items,
+        header: Text(
+          left == 0
+              ? 'خلصت كل صلوات النهاردة ✓'
+              : 'فاضل $left من ${counted.length}',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        itemBuilder: (it) {
           final p = it.prayer;
           final done = p.prayedToday;
           final last = p.lastPrayedAt;
@@ -208,7 +201,7 @@ class _IntercedeScreenState extends State<IntercedeScreen>
   }
 
   Future<void> _logSingle(Prayer p) async {
-    final note = await askNote(context);
+    final note = await askNote(context, prayerTitle: p.title);
     if (note == null) return;
     try {
       await logPrayed([p.id], note: note.isEmpty ? null : note);
@@ -491,7 +484,7 @@ class _PrayerSearch extends SearchDelegate<void> {
   Widget buildResults(BuildContext context) => buildSuggestions(context);
 
   Future<void> _pray(BuildContext context, Prayer p) async {
-    final note = await askNote(context);
+    final note = await askNote(context, prayerTitle: p.title);
     if (note == null) return;
     try {
       await logPrayed([p.id], note: note.isEmpty ? null : note);
@@ -523,6 +516,7 @@ class _PrayerSearch extends SearchDelegate<void> {
             title: it.prayer.title,
             meta: it.entity.name,
             pinned: it.prayer.pinned,
+            done: it.prayer.prayedToday,
             // ponytail: results are a snapshot, so any change closes the search and the tab reloads.
             onPray: intercedeCanEdit ? () => _pray(context, it.prayer) : null,
             onMenu: intercedeCanEdit
@@ -547,48 +541,64 @@ class _PrayerSearch extends SearchDelegate<void> {
 
 // ---- shared helpers ---------------------------------------------------------
 
-Future<String?> askNote(BuildContext context) async {
+Future<String?> askNote(BuildContext context, {String? prayerTitle}) =>
+    showDialog<String>(
+      context: context,
+      builder: (_) => _PrayerConfirmationDialog(prayerTitle: prayerTitle),
+    );
+
+class _PrayerConfirmationDialog extends StatefulWidget {
+  const _PrayerConfirmationDialog({this.prayerTitle});
+  final String? prayerTitle;
+  @override
+  State<_PrayerConfirmationDialog> createState() =>
+      _PrayerConfirmationDialogState();
+}
+
+class _PrayerConfirmationDialogState extends State<_PrayerConfirmationDialog> {
   final noteC = TextEditingController();
-  final ok = await showModalBottomSheet<bool>(
-    context: context,
-    isScrollControlled: true,
-    builder: (ctx) => Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(ctx).viewInsets.bottom,
-        top: 24,
-        left: 24,
-        right: 24,
-      ),
+  @override
+  void dispose() {
+    noteC.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('صليت؟'),
+    content: SingleChildScrollView(
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'ملاحظة (اختياري)',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          Text(
+            widget.prayerTitle == null
+                ? 'تأكد إنك صليت لكل الطلبات دي قبل التسجيل.'
+                : 'تأكد إنك صليت للطلب ده:\n${widget.prayerTitle}',
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           TextField(
             controller: noteC,
             maxLines: 3,
-            autofocus: true,
             decoration: const InputDecoration(
-              hintText: 'اكتب ملاحظة...',
+              labelText: 'ملاحظة (اختياري)',
               border: OutlineInputBorder(),
             ),
           ),
-          const SizedBox(height: 12),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('تم'),
-          ),
-          const SizedBox(height: 16),
         ],
       ),
     ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('إلغاء'),
+      ),
+      FilledButton(
+        onPressed: () => Navigator.pop(context, noteC.text.trim()),
+        child: const Text('أيوه، صليت'),
+      ),
+    ],
   );
-  if (ok != true) return null;
-  return noteC.text.trim();
 }
 
 class ErrorRetry extends StatelessWidget {

@@ -9,7 +9,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.os.SystemClock
 import android.view.View
 import android.widget.RemoteViews
 import org.json.JSONArray
@@ -30,8 +29,10 @@ class IntercedeWidgetProvider : AppWidgetProvider() {
 
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
-            ACTION_PRAY -> {
-                intent.data?.schemeSpecificPart?.let { enqueue(context, it) }
+            ACTION_TOGGLE -> {
+                val id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, -1)
+                val key = "showPrayed.$id"
+                prefs(context).edit().putBoolean(key, !prefs(context).getBoolean(key, false)).apply()
                 renderAll(context)
             }
             ACTION_MIDNIGHT, Intent.ACTION_TIME_CHANGED, Intent.ACTION_TIMEZONE_CHANGED,
@@ -41,7 +42,7 @@ class IntercedeWidgetProvider : AppWidgetProvider() {
     }
 
     companion object {
-        private const val ACTION_PRAY = "com.aio.aio.INTERCEDE_PRAY"
+        private const val ACTION_TOGGLE = "com.aio.aio.INTERCEDE_TOGGLE"
         private const val ACTION_MIDNIGHT = "com.aio.aio.INTERCEDE_MIDNIGHT"
         private val rows = intArrayOf(R.id.intercede_row_1, R.id.intercede_row_2,
             R.id.intercede_row_3, R.id.intercede_row_4, R.id.intercede_row_5)
@@ -90,33 +91,30 @@ class IntercedeWidgetProvider : AppWidgetProvider() {
             return last
         }
 
-        private fun enqueue(context: Context, id: String) {
-            val items = snapshot(context) ?: return
-            val taps = queue(context)
-            val now = System.currentTimeMillis()
+        fun pendingLabel(context: Context, id: String): String? {
+            val items = snapshot(context) ?: return null
             val item = (0 until items.length()).mapNotNull { items.optJSONObject(it) }
-                .firstOrNull { it.optString("id") == id } ?: return
-            if (sameDay(lastFor(item, taps), now)) return
-            // Backfill changes the row under the finger; reject a rapid second tap.
-            val elapsed = SystemClock.elapsedRealtime()
-            val previous = prefs(context).getLong("lastTapElapsed", -1000)
-            if (elapsed >= previous && elapsed - previous < 650) return
-            val previousQueue = taps.toString()
-            taps.put(JSONObject().put("id", id).put("at", now)
-                .put("k", UUID.randomUUID().toString().replace("-", "")))
-            val saved = prefs(context).edit().putString("taps", taps.toString())
-                .putLong("lastTapElapsed", elapsed).commit()
-            if (!saved) {
-                // SharedPreferences updates its memory map even when disk fails.
-                // Restore it so a failed durable write never displays success.
-                prefs(context).edit().putString("taps", previousQueue)
-                    .putLong("lastTapElapsed", previous).commit()
-            }
+                .firstOrNull { it.optString("id") == id } ?: return null
+            if (sameDay(lastFor(item, queue(context)), System.currentTimeMillis())) return null
+            return "${item.optString("t")} — ${item.optString("e")}"
         }
 
-        private fun mark(context: Context, id: String): PendingIntent = PendingIntent.getBroadcast(
-            context, 0, Intent(context, IntercedeWidgetProvider::class.java)
-                .setAction(ACTION_PRAY).setData(Uri.fromParts("intercede", id, null)),
+        fun confirmPrayer(context: Context, id: String): Boolean {
+            // Recheck at confirmation: another instance may already have recorded it.
+            if (pendingLabel(context, id) == null) return true
+            val taps = queue(context)
+            val previousQueue = taps.toString()
+            taps.put(JSONObject().put("id", id).put("at", System.currentTimeMillis())
+                .put("k", UUID.randomUUID().toString().replace("-", "")))
+            val saved = prefs(context).edit().putString("taps", taps.toString()).commit()
+            if (!saved) prefs(context).edit().putString("taps", previousQueue).commit()
+            renderAll(context)
+            return saved
+        }
+
+        private fun mark(context: Context, id: String): PendingIntent = PendingIntent.getActivity(
+            context, 0, Intent(context, IntercedeConfirmActivity::class.java)
+                .setData(Uri.fromParts("intercede", id, null)),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
 
         private fun alarm(context: Context): PendingIntent = PendingIntent.getBroadcast(
@@ -151,19 +149,32 @@ class IntercedeWidgetProvider : AppWidgetProvider() {
                 views.setViewVisibility(R.id.intercede_message, if (message.isEmpty()) View.GONE else View.VISIBLE)
                 views.setTextViewText(R.id.intercede_message, message)
                 views.setOnClickPendingIntent(R.id.intercede_message, open)
+                val showPrayed = prefs(context).getBoolean("showPrayed.$id", false)
+                val display = if (showPrayed) all.filter { sameDay(lastFor(it, taps), now) } else pending
+                val toggle = PendingIntent.getBroadcast(context, id,
+                    Intent(context, IntercedeWidgetProvider::class.java).setAction(ACTION_TOGGLE)
+                        .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, id),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                views.setTextViewText(R.id.intercede_toggle,
+                    if (showPrayed) "عرض اللي لسه متصلاش ليهم" else "عرض اللي اتصلى ليهم النهاردة")
+                views.setOnClickPendingIntent(R.id.intercede_toggle, toggle)
+                if (showPrayed) {
+                    views.setTextViewText(R.id.intercede_message, if (display.isEmpty()) "لسه متصلاش لأي طلب النهاردة" else "")
+                    views.setViewVisibility(R.id.intercede_message, if (display.isEmpty()) View.VISIBLE else View.GONE)
+                }
                 val height = manager.getAppWidgetOptions(id)
-                    .getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 320)
-                val visibleCount = ((height - 64) / 48).coerceIn(1, 5)
+                    .getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 360)
+                val visibleCount = ((height - 112) / 48).coerceIn(1, 5)
                 for ((index, rowId) in rows.withIndex()) {
-                    val item = pending.getOrNull(index)
+                    val item = display.getOrNull(index)
                     val visible = item != null && index < visibleCount
                     views.setViewVisibility(rowId, if (visible) View.VISIBLE else View.GONE)
                     if (visible && item != null) {
                         val title = item.optString("t")
                         val entity = item.optString("e")
-                        views.setTextViewText(rowId, "☐  $title — $entity")
-                        views.setContentDescription(rowId, "صليت: $title، $entity")
-                        views.setOnClickPendingIntent(rowId, mark(context, item.optString("id")))
+                        views.setTextViewText(rowId, "${if (showPrayed) "✓" else "☐"}  $title — $entity")
+                        views.setContentDescription(rowId, "${if (showPrayed) "تم الصلاة" else "تأكيد الصلاة"}: $title، $entity")
+                        views.setOnClickPendingIntent(rowId, if (showPrayed) null else mark(context, item.optString("id")))
                     }
                 }
                 manager.updateAppWidget(id, views)
